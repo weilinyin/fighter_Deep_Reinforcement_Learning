@@ -1,22 +1,61 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
+from math import sin , cos
 
-class coordinate_transform_matrix(self):
-    def __init__(self):
-        self.matrix = 
-        
+def rotation(axis,angle):
+    # 旋转矩阵计算
+    if axis == 'x':
+        R = np.array([[1, 0, 0], [0, np.cos(angle), -np.sin(angle)], [0, np.sin(angle), np.cos(angle)]])
+    elif axis == 'y':
+        R = np.array([[np.cos(angle), 0, np.sin(angle)], [0, 1, 0], [-np.sin(angle), 0, np.cos(angle)]])
+    elif axis == 'z':
+        R = np.array([[np.cos(angle), -np.sin(angle), 0], [np.sin(angle), np.cos(angle), 0], [0, 0, 1]])
+    return R
+
 
 class aircraft:
     def __init__(self,position,theta,psi,velocity,a_max):
-        self.position = position # 战机位置 (x, y, z)
+        self.position = position # 位置 (x, y, z)
         self.theta = theta # 弹道倾角 (theta)
         self.psi = psi # 弹道偏角 (psi)
         self.velocity = velocity # 速度 (v)
         self.a_max=a_max # 最大过载 (a_max)
     
-    def simulate_motion(self, action):
-        
+class relative:
+    def __init__(self,chaser:aircraft,target:aircraft):
+        self.r = np.abs(target.position - chaser.position)
+        self.q_y = m.asin((target.position[1] - chaser.position[1]) / self.r)
+        self.q_z = m.acos((target.position[0] - chaser.position[0]) / (np.abs(target.position[0:1] - chaser.position[0:1])))
+        self.chaser = chaser
+        self.target = target
+
+    
+    def simulate(self,dt,action):
+        self.dr = (self.target.velocity * (m.cos(self.target.theta) * m.cos(self.q_y) * m.cos(self.target.psi - self.q_z) +
+                                            m.sin(self.target.theta) * m.sin(self.q_y)) -
+                    self.chaser.velocity * (m.cos(self.chaser.theta) * m.cos(self.q_y) * m.cos(self.chaser.psi - self.q_z) +
+                                            m.sin(self.chaser.theta) * m.sin(self.q_y)))
+        self.dq_y = (self.target.velocity * (m.sin(self.target.theta) * m.cos(self.q_y) -
+                                             m.cos(self.target.theta) * m.sin(self.q_y) * m.cos(self.target.psi - self.q_z) +
+                                             m.sin(self.target.psi - self.q_z) * m.sin(self.q_y)) -
+                     self.chaser.velocity * (m.sin(self.chaser.theta) * m.cos(self.q_y) -
+                                             m.cos(self.chaser.theta) * m.sin(self.q_y) * m.cos(self.chaser.psi - self.q_z) +
+                                             m.sin(self.chaser.psi - self.q_z) * m.sin(self.q_y)))/self.r
+        self.dq_z = (self.target.velocity * m.cos(self.target.theta) * m.sin(self.chaser.psi - self.q_z) -
+                     self.chaser.velocity * m.cos(self.chaser.theta) * m.sin(self.chaser.psi - self.q_z))/(self.r * m.cos(self.q_y))
+        if action == None
+            self.dtheta = 3 * self.dq_y * 
+
+
+
+
+
+
+
+
+
+
     
 
 
