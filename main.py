@@ -2,6 +2,11 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 
+class coordinate_transform_matrix(self):
+    def __init__(self):
+        self.matrix = 
+        
+
 class aircraft:
     def __init__(self,position,theta,psi,velocity,a_max):
         self.position = position # 战机位置 (x, y, z)
@@ -12,7 +17,7 @@ class aircraft:
     
     def simulate_motion(self, action):
         
-
+    
 
 
 class CustomEnv(gym.Env):
