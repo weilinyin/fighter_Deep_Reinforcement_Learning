@@ -3,15 +3,106 @@ import torch.nn as nn
 import numpy as np
 from collections import deque
 
+class aircraft:
+    def __init__(self,position,theta,psi,velocity,a_max):
+        self.position = position # 位置 (x, y, z)
+        self.theta = theta # 弹道倾角 (theta)
+        self.psi = psi # 弹道偏角 (psi)
+        self.velocity = velocity # 速度 (v)
+        self.a_max=a_max # 最大过载 (a_max)
+
+class relative:
+    def __init__(self,chaser:aircraft,target:aircraft):
+        #初始化相对量
+        self.r, self.q_y, self.q_z =self.state(self,chaser,target)
+        self.chaser = chaser
+        self.target = target
+        self.theta = self.chaser.theta
+        self.psi = self.chaser.psi
+    def state(self,chaser:aircraft,target:aircraft):
+        r = np.abs(target.position - chaser.position)
+        q_y = np.asin((target.position[1] - chaser.position[1]) / r)
+        q_z = np.acos((target.position[0] - chaser.position[0]) / (np.abs(target.position[0:1] - chaser.position[0:1])))
+        return r,q_y,q_z
+
+
+    
+    def simulate(self,dt,a_y,a_z,action:bool):
+        self.dr = (self.target.velocity * (np.cos(self.target.theta) * np.cos(self.q_y) * np.cos(self.target.psi - self.q_z) +
+                                            np.sin(self.target.theta) * np.sin(self.q_y)) -
+                    self.chaser.velocity * (np.cos(self.chaser.theta) * np.cos(self.q_y) * np.cos(self.chaser.psi - self.q_z) +
+                                            np.sin(self.chaser.theta) * np.sin(self.q_y)))
+        self.dq_y = (self.target.velocity * (np.sin(self.target.theta) * np.cos(self.q_y) -
+                                             np.cos(self.target.theta) * np.sin(self.q_y) * np.cos(self.target.psi - self.q_z) +
+                                             np.sin(self.target.psi - self.q_z) * np.sin(self.q_y)) -
+                     self.chaser.velocity * (np.sin(self.chaser.theta) * np.cos(self.q_y) -
+                                             np.cos(self.chaser.theta) * np.sin(self.q_y) * np.cos(self.chaser.psi - self.q_z) +
+                                             np.sin(self.chaser.psi - self.q_z) * np.sin(self.q_y)))/self.r
+        self.dq_z = (self.target.velocity * np.cos(self.target.theta) * np.sin(self.chaser.psi - self.q_z) -
+                     self.chaser.velocity * np.cos(self.chaser.theta) * np.sin(self.chaser.psi - self.q_z))/(self.r * np.cos(self.q_y))
+        if action == False:
+            #比例导引法
+            self.dtheta = 3 * self.dq_y * np.cos(self.q_z - self.chaser.psi)
+            self.dpsi = 3 * self.dq_z - 3 * self.dq_y * np.tan(self.chaser.theta) * np.sin(self.q_z - self.chaser.psi)
+        else:
+            self.dtheta = a_y/self.chaser.velocity
+            self.dpsi = -a_z/(self.chaser.velocity * np.cos(self.chaser.theta))
+
+        self.r += self.dr * dt
+        self.q_y += self.dq_y * dt
+        self.q_z += self.dq_z * dt
+        self.chaser.psi += self.dpsi * dt
+        self.chaser.theta += self.dtheta * dt
+
+        return self.r , self.q_y , self.q_z
+    
+
+
 # 1. 环境模块
 class FighterEnv:
     def __init__(self):
-        # 初始化战斗机和防御弹参数（速度、位置、制导律等）
-        self.state_dim = 6  # 三维状态维度（r_FD, η_yFD, η_zFD, r_FT, η_yFT, η_zFT）
-        self.action_dim = 2  # 纵向和侧向加速度
+        # 初始化战斗机、防御弹和目标参数（速度、位置、制导律等）
+        self.fighter = aircraft(
+            np.array([0, 10000, 0]),
+            0,
+            0,
+            900,
+            2
+        )
+        self.defender = aircraft(
+            np.array([40000, 10000, -5000]),
+            0,
+            3.23,
+            1000,
+            5
+        )
+        self.target = aircraft(
+            np.array([50000,10000,0]),
+            0,
+            0,
+            0,
+            0
+        )
+
+
+        #初始化相对量
+        self.FD = relative(self.defender, self.target)
+        self.FT = relative(self.fighter, self.target)
+
+        # 初始化状态
+
+        self.state = np.array([
+            self.
+        ])
+
+
+
+
     
     def reset(self):
         # 重置环境，返回初始状态
+        self.FD = relative(self.defender, self.target)
+        self.FT = relative(self.fighter, self.target)
         return np.zeros(self.state_dim)
     
     def step(self, action):
