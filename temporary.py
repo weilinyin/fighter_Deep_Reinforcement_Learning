@@ -1,7 +1,14 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from math import sin , cos
 from collections import deque
+
+R_DAM = 20
+R_FD = 18000
+R_FT = 30000
+ETA_FT = 10 * np.pi / 180
+
 
 class aircraft:
     def __init__(self,position,theta,psi,velocity,a_max):
@@ -19,34 +26,42 @@ class relative:
         self.target = target
         self.theta = self.chaser.theta
         self.psi = self.chaser.psi
+
     def state(self,chaser:aircraft,target:aircraft):
         r = np.abs(target.position - chaser.position)
         q_y = np.asin((target.position[1] - chaser.position[1]) / r)
         q_z = np.acos((target.position[0] - chaser.position[0]) / (np.abs(target.position[0:1] - chaser.position[0:1])))
-        return r,q_y,q_z
+        r_bar = r / R_FD
+        eta_y = np.arcsin(-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
+                          cos(self.theta) * sin(q_y) -
+                          sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
+        eta_z = np.arctan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
+                          (cos(q_y) * cos(q_z) * cos(self.theta) * ))
+
+        return 
 
 
     
     def simulate(self,dt,a_y,a_z,action:bool):
-        self.dr = (self.target.velocity * (np.cos(self.target.theta) * np.cos(self.q_y) * np.cos(self.target.psi - self.q_z) +
-                                            np.sin(self.target.theta) * np.sin(self.q_y)) -
-                    self.chaser.velocity * (np.cos(self.chaser.theta) * np.cos(self.q_y) * np.cos(self.chaser.psi - self.q_z) +
-                                            np.sin(self.chaser.theta) * np.sin(self.q_y)))
-        self.dq_y = (self.target.velocity * (np.sin(self.target.theta) * np.cos(self.q_y) -
-                                             np.cos(self.target.theta) * np.sin(self.q_y) * np.cos(self.target.psi - self.q_z) +
-                                             np.sin(self.target.psi - self.q_z) * np.sin(self.q_y)) -
-                     self.chaser.velocity * (np.sin(self.chaser.theta) * np.cos(self.q_y) -
-                                             np.cos(self.chaser.theta) * np.sin(self.q_y) * np.cos(self.chaser.psi - self.q_z) +
-                                             np.sin(self.chaser.psi - self.q_z) * np.sin(self.q_y)))/self.r
-        self.dq_z = (self.target.velocity * np.cos(self.target.theta) * np.sin(self.chaser.psi - self.q_z) -
-                     self.chaser.velocity * np.cos(self.chaser.theta) * np.sin(self.chaser.psi - self.q_z))/(self.r * np.cos(self.q_y))
+        self.dr = (self.target.velocity * (cos(self.target.theta) * cos(self.q_y) * cos(self.target.psi - self.q_z) +
+                                            sin(self.target.theta) * sin(self.q_y)) -
+                    self.chaser.velocity * (cos(self.chaser.theta) * cos(self.q_y) * cos(self.chaser.psi - self.q_z) +
+                                            sin(self.chaser.theta) * sin(self.q_y)))
+        self.dq_y = (self.target.velocity * (sin(self.target.theta) * cos(self.q_y) -
+                                             cos(self.target.theta) * sin(self.q_y) * cos(self.target.psi - self.q_z) +
+                                             sin(self.target.psi - self.q_z) * sin(self.q_y)) -
+                     self.chaser.velocity * (sin(self.chaser.theta) * cos(self.q_y) -
+                                             cos(self.chaser.theta) * sin(self.q_y) * cos(self.chaser.psi - self.q_z) +
+                                             sin(self.chaser.psi - self.q_z) * sin(self.q_y)))/self.r
+        self.dq_z = (self.target.velocity * cos(self.target.theta) * sin(self.chaser.psi - self.q_z) -
+                     self.chaser.velocity * cos(self.chaser.theta) * sin(self.chaser.psi - self.q_z))/(self.r * cos(self.q_y))
         if action == False:
             #比例导引法
-            self.dtheta = 3 * self.dq_y * np.cos(self.q_z - self.chaser.psi)
-            self.dpsi = 3 * self.dq_z - 3 * self.dq_y * np.tan(self.chaser.theta) * np.sin(self.q_z - self.chaser.psi)
+            self.dtheta = 3 * self.dq_y * cos(self.q_z - self.chaser.psi)
+            self.dpsi = 3 * self.dq_z - 3 * self.dq_y * tan(self.chaser.theta) * sin(self.q_z - self.chaser.psi)
         else:
             self.dtheta = a_y/self.chaser.velocity
-            self.dpsi = -a_z/(self.chaser.velocity * np.cos(self.chaser.theta))
+            self.dpsi = -a_z/(self.chaser.velocity * cos(self.chaser.theta))
 
         self.r += self.dr * dt
         self.q_y += self.dq_y * dt
@@ -90,9 +105,10 @@ class FighterEnv:
         self.FT = relative(self.fighter, self.target)
 
         # 初始化状态
+        r_1 , q_y1 , q_z1 = self.FD.state()
+        r_2 , q_y2 , q_z2 = self.FT.state()
 
         self.state = np.array([
-            self.
         ])
 
 
