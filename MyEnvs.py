@@ -1,8 +1,11 @@
 import numpy as np
-from math import sin , cos , tan
+from math import sin , cos , tan ,acos ,asin ,atan
 from collections import deque
 import gymnasium as gym
 import copy
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+
 
 R_DAM = 20
 R_FD = 18000
@@ -43,9 +46,9 @@ class relative:
     def __init__(self,chaser:aircraft,target:aircraft):
         # 初始化相对量
 
-        self.r = np.abs(target.position - chaser.position)
-        self.q_y = np.arcsin((target.position[1] - chaser.position[1]) / self.r)
-        self.q_z = np.arccos((target.position[0] - chaser.position[0]) / (np.abs(target.position[0:1] - chaser.position[0:1])))
+        self.r = np.linalg.norm(target.position - chaser.position)
+        self.q_y = asin((target.position[1] - chaser.position[1]) / self.r)
+        self.q_z = acos((target.position[0] - chaser.position[0]) / (np.linalg.norm(target.position[0:1] - chaser.position[0:1])))
         self.chaser = chaser
         self.target = target
         self.theta = self.chaser.theta
@@ -70,10 +73,10 @@ class relative:
        # 归一化处理
 
         r_bar = r / self.chaser.R
-        eta_y = np.arcsin(-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
+        eta_y = asin(-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
                           cos(self.theta) * sin(q_y) -
                           sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
-        eta_z = np.arctan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
+        eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
                           (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
                            sin(self.theta) * sin(q_y) +
                            cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
@@ -147,7 +150,7 @@ class FighterEnv(gym.Env):
         self.action_space = gym.spaces.Box(low = np.array([-np.pi , 0]) ,
                                            high = np.array([np.pi , np.sqrt(2)]) ,
                                            shape = (2,),
-                                           dtype = np.float64) #第一项为加速度角度，第二项为模长
+                                           dtype = np.float64) #第一项为加速度角度，第二项为加速度大小
         self.fighter = aircraft(
             np.array([0, 10000, 0]),
             0,
@@ -182,6 +185,11 @@ class FighterEnv(gym.Env):
         # 规定时间步长
         self.dt = DT
 
+        # 人类观察数据
+        self.obs = {"fighter_x":[] , "fighter.y":[] , "fighter.z":[], "defender_x":[], "defender.y":[], "defender.z":[]}  # 人类观察数据
+
+
+
         # 先进行比例导引法
         self.start_simulate()
 
@@ -203,6 +211,7 @@ class FighterEnv(gym.Env):
             self.FD.simulate(DT)
             self.FT.proportional_navigation()
             self.FT.simulate(DT)
+            
 
 
 
@@ -280,7 +289,7 @@ class FighterEnv(gym.Env):
         l_ft = self.FT.r * np.array([cos(self.FT.q_y) * cos(self.FT.q_z),
                                     -cos(self.FT.q_y) * sin(self.FT.q_z),
                                     sin(self.FT.q_y)])
-        eta_ft = np.arccos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
+        eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
 
 
         
@@ -306,6 +315,8 @@ class FighterEnv(gym.Env):
 
             return reward_1 + reward_2 + reward_3
 
+
+fighter = FighterEnv()
 
 
             
