@@ -9,6 +9,12 @@ R_FD = 18000
 R_FT = 30000
 ETA_FT = 10 * np.pi / 180
 DT = 0.1
+K_PLUS = 50
+K_MINUS = -50
+K_R1 = 0.1
+K_R2 = 1
+K_R3 = 2e-5
+
 
 
 
@@ -240,7 +246,7 @@ class FighterEnv(gym.Env):
 
         observation = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
 
-        reward = self.calculate_reward()
+        reward = self.calculate_reward(action[1])
         terminated = self.check_terminated(observation)
         truncated = False
 
@@ -265,8 +271,42 @@ class FighterEnv(gym.Env):
 
 
     
-    def calculate_reward(self):
+    def calculate_reward(self,a_F):
         # 根据论文公式计算奖励（突防、被拦截、控制能量等）
-        if self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and :
 
-            reward = 
+        v_f = self.fighter.velocity * np.array([cos(self.FT.theta) * cos(self.FT.psi),
+                                           -cos(self.FT.theta) * sin(self.FT.psi),
+                                            sin(self.FT.theta)])  # 战机速度矢量
+        l_ft = self.FT.r * np.array([cos(self.FT.q_y) * cos(self.FT.q_z),
+                                    -cos(self.FT.q_y) * sin(self.FT.q_z),
+                                    sin(self.FT.q_y)])
+        eta_ft = np.arccos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
+
+
+        
+        if self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and eta_ft <= ETA_FT:
+
+            return K_PLUS
+        elif self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and eta_ft > ETA_FT:
+            return 0
+        elif self.FD.r < R_DAM:
+            return -K_MINUS
+        else:
+            if eta_ft <= ETA_FT:
+                reward_1 = K_R1 * cos(eta_ft)
+            else:
+                reward_1 = -0.05
+            
+            if self.FD.dr < 0:
+                reward_2 = K_R2 * np.exp(-self.FD.r/100)
+            else:
+                reward_2 = 0
+            
+            reward_3 = -K_R3 * a_F ** 2
+
+            return reward_1 + reward_2 + reward_3
+
+
+
+            
+
