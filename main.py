@@ -1,10 +1,17 @@
 from MyEnvs import FighterEnv
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+
+#from stable_baselines3 import PPO
+
+
 
 
 myenv = FighterEnv()
+
+
+
+
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')

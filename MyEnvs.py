@@ -100,6 +100,19 @@ class relative:
         self.a_y = self.dtheta * self.chaser.velocity
         self.a_z = -self.dpsi * self.chaser.velocity * cos(self.theta)
 
+        a = sqrt(self.a_y**2 + self.a_z**2)
+
+
+        if a >self.chaser.a_max:
+            self.a_y = self.a_y * self.chaser.a_max / a
+            self.a_z = self.a_z * self.chaser.a_max / a
+            self.dtheta = self.a_y / self.chaser.velocity
+            self.dpsi = -self.a_z / (self.chaser.velocity * cos(self.theta))
+
+
+
+
+
 
             
 
@@ -188,7 +201,7 @@ class FighterEnv(gym.Env):
             0,
             0,
             900,
-            2,
+            2*9.81,
             18000
         )
         self.defender = aircraft(
@@ -196,7 +209,7 @@ class FighterEnv(gym.Env):
             0.11,
             3.23,
             1000,
-            5,
+            5*9.81,
             30000
         )
         self.target = aircraft(
@@ -218,7 +231,7 @@ class FighterEnv(gym.Env):
         self.dt = DT
 
         # 制图数据
-        self.plotdata = {"fighter":{} , "defender":{}} 
+        self.plotdata = {"fighter":{} , "defender":{}, "rewards":[]} 
 
         self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
         self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
@@ -302,8 +315,9 @@ class FighterEnv(gym.Env):
         # 按时间步长模拟飞行器运动
 
         # 防御弹
-        self.FD.proportional_navigation()
         self.FD.simulate(DT)
+        self.FD.proportional_navigation()
+        
 
         # 战斗机
         a_y = action[1] * cos(action[0])
@@ -324,6 +338,7 @@ class FighterEnv(gym.Env):
         observation = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
 
         reward = self.calculate_reward(action[1])
+
         terminated = self.check_terminated(observation)
         truncated = False
 
