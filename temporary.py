@@ -5,6 +5,7 @@ from math import sin , cos
 from collections import deque
 from MyEnvs import FighterEnv
 
+
 # 2. 神经网络定义
 class Actor(nn.Module):
     def __init__(self, state_dim, action_dim):
