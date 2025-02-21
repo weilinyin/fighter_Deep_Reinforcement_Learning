@@ -1,5 +1,5 @@
 import numpy as np
-from math import sin , cos , tan ,acos ,asin ,atan
+from math import sin , cos , tan ,acos ,asin ,atan ,sqrt
 from collections import deque
 import gymnasium as gym
 import copy
@@ -39,7 +39,10 @@ class relative:
 
         self.r = np.linalg.norm(target.position - chaser.position)
         self.q_y = asin((target.position[1] - chaser.position[1]) / self.r)
-        self.q_z = acos((target.position[0] - chaser.position[0]) / (np.linalg.norm(target.position[0:1] - chaser.position[0:1])))
+        self.q_z = acos((target.position[0] - chaser.position[0]) / (np.linalg.norm(np.array([target.position[0] - chaser.position[0] , target.position[2] - chaser.position[2]])))) 
+        self.dq_y = 0
+        self.dq_z = 0
+
 
         self.dr = 0
         self.dq_y = 0
@@ -91,6 +94,21 @@ class relative:
         self.dpsi = 3 * self.dq_z - 3 * self.dq_y * tan(self.theta) * sin(self.q_z - self.psi)
 
 
+    
+    def calculate_a(self):
+
+        self.a_y = self.dtheta * self.chaser.velocity
+        self.a_z = -self.dpsi * self.chaser.velocity * cos(self.theta)
+
+
+
+
+
+
+
+
+
+
 
     def simulate(self,dt):
         # 模拟飞行器运动
@@ -116,6 +134,8 @@ class relative:
         self.q_y += self.dq_y * dt
         self.q_z += self.dq_z * dt
 
+        self.calculate_a()
+
         self.theta += self.dtheta * dt 
         self.psi += self.dpsi * dt
 
@@ -123,7 +143,7 @@ class relative:
         
         self.chaser.position[0] = self.target.position[0] - self.r * cos(self.q_y) * cos(self.q_z)
         self.chaser.position[1] = self.target.position[1] - self.r * sin(self.q_y)
-        self.chaser.position[2] = self.target.position[2] - self.r * cos(self.q_y) * sin(self.q_z)
+        self.chaser.position[2] = self.target.position[2] + self.r * cos(self.q_y) * sin(self.q_z)
         self.chaser.theta = self.theta
         self.chaser.psi = self.psi
 
@@ -223,11 +243,12 @@ class FighterEnv(gym.Env):
         #while not self.FD.check_detection():
         while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
             
-            self.FT.proportional_navigation()
-            self.FT.simulate(self.dt) 
-            self.FD.proportional_navigation()
-            self.FD.simulate(self.dt)
             
+            self.FT.simulate(self.dt) 
+            self.FD.simulate(self.dt)
+
+            self.FT.proportional_navigation()
+            self.FD.proportional_navigation()
             
             # 加入观察数据
             self.update_plotdata()
@@ -240,8 +261,8 @@ class FighterEnv(gym.Env):
         self.plotdata["fighter"]["z"].append(self.fighter.position[2])
         self.plotdata["fighter"]["theta"].append(self.FT.theta)
         self.plotdata["fighter"]["psi"].append(self.FT.psi)
-        self.plotdata["fighter"]["a_y"].append(self.FT.dtheta * self.fighter.velocity)
-        self.plotdata["fighter"]["a_z"].append(-self.FT.dpsi * self.fighter.velocity * cos(self.FT.theta))
+        self.plotdata["fighter"]["a_y"].append(self.FT.a_y)
+        self.plotdata["fighter"]["a_z"].append(self.FT.a_z)
         self.plotdata["fighter"]["r"].append(self.FT.r)
 
         self.plotdata["defender"]["x"].append(self.defender.position[0])
@@ -249,8 +270,8 @@ class FighterEnv(gym.Env):
         self.plotdata["defender"]["z"].append(self.defender.position[2])
         self.plotdata["defender"]["theta"].append(self.FD.theta)
         self.plotdata["defender"]["psi"].append(self.FD.psi)
-        self.plotdata["defender"]["a_y"].append(self.FD.dtheta * self.defender.velocity)
-        self.plotdata["defender"]["a_z"].append(-self.FD.dpsi * self.defender.velocity * cos(self.FD.theta))
+        self.plotdata["defender"]["a_y"].append(self.FD.a_y)
+        self.plotdata["defender"]["a_z"].append(self.FD.a_z)
         self.plotdata["defender"]["r"].append(self.FD.r)
 
         self.t_array.append(self.t)
@@ -372,20 +393,38 @@ ax.set_xlabel('X Label')
 ax.set_ylabel('Y Label')
 ax.set_zlabel('Z Label')
 
+ax.set_box_aspect([1,1,1])
 
 
 
-plt.show()
 
 plt.figure()
-plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"] , label='Defender r')
-plt.plot(myenv.t_array , myenv.plotdata["fighter"]["r"] , label='Defender r')
+plt.plot(myenv.plotdata["defender"]["x"] , myenv.plotdata["defender"]["y"])
+plt.plot(myenv.plotdata["fighter"]["x"] , myenv.plotdata["fighter"]["y"])
+
+plt.figure()
+plt.plot(myenv.plotdata["defender"]["x"] , myenv.plotdata["defender"]["z"])
+plt.plot(myenv.plotdata["fighter"]["x"] , myenv.plotdata["fighter"]["z"])
+
+plt.figure()
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["theta"])
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["theta"])
+
+plt.figure()
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["psi"])
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["psi"])
+
+plt.figure()
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_y"])
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["a_y"])
+
+plt.figure()
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_z"])
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["a_z"])
+
+
+
 plt.show()
-
-print(myenv.defender.position)
-print(myenv.fighter.position)
-
-
 
 
             
