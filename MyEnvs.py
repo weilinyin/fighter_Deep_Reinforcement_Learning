@@ -11,7 +11,7 @@ R_DAM = 20
 R_FD = 18000
 R_FT = 30000
 ETA_FT = 10 * np.pi / 180
-DT = 0.01
+DT = 0.1
 K_PLUS = 50
 K_MINUS = -50
 K_R1 = 0.1
@@ -165,6 +165,7 @@ class relative:
 
 
 
+
         
 
 
@@ -185,7 +186,11 @@ class relative:
 # 1. 环境模块
 class FighterEnv(gym.Env):
 
-    def __init__(self):
+    def __init__(self,Isprint = False):
+        super().__init__()
+
+        self.Isprint = Isprint
+
         
         self.observation_space = gym.spaces.Box(low = np.array([0 , -1 , -1 , -np.inf , -1 , -1]) ,
                                                 high = np.array([np.inf , 1 , 1 , 2 , 1 , 1]) ,
@@ -230,15 +235,17 @@ class FighterEnv(gym.Env):
         # 规定时间步长
         self.dt = DT
 
-        # 制图数据
-        self.plotdata = {"fighter":{} , "defender":{}, "rewards":[]} 
+        if self.Isprint:
 
-        self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
-        self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
+            # 制图数据
+            self.plotdata = {"fighter":{} , "defender":{}, "rewards":[]} 
 
-        # 计时器
-        self.t = 0.0
-        self.t_array = []
+            self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
+            self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
+
+            # 计时器
+            self.t = 0.0
+            self.t_array = []
 
         # 未开始突防
         self.start_simulate()
@@ -251,13 +258,13 @@ class FighterEnv(gym.Env):
         self.state = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
 
         # 存档
-        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state)}
+        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state),"plotdata":copy.deepcopy(self.plotdata),"t_array":copy.deepcopy(self.t_array),"t":self.t}
+
 
 
     def start_simulate(self):
 
-        #while not self.FD.check_detection():
-        while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
+        while not self.FD.check_detection():
             
             
             self.FT.simulate(self.dt) 
@@ -267,7 +274,8 @@ class FighterEnv(gym.Env):
             self.FD.proportional_navigation()
             
             # 加入观察数据
-            self.update_plotdata()
+            if self.Isprint:
+                self.update_plotdata()
 
 
 
@@ -302,6 +310,8 @@ class FighterEnv(gym.Env):
         self.fighter = copy.deepcopy(self.saves["figher"])
         self.defender = copy.deepcopy(self.saves["defender"])
         self.state = copy.deepcopy(self.saves["state"])
+
+
 
         observation = self.state
         return observation , {}
@@ -403,3 +413,19 @@ class FighterEnv(gym.Env):
 
             
 
+class FighterEnv_2(FighterEnv):
+
+    def start_simulate(self):
+        while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
+            
+            
+            self.FT.simulate(self.dt) 
+            self.FD.simulate(self.dt)
+
+            self.FT.proportional_navigation()
+            self.FD.proportional_navigation()
+
+            if self.Isprint:
+            
+                # 加入观察数据
+                self.update_plotdata()
