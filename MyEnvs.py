@@ -1,5 +1,5 @@
 import numpy as np
-from math import sin , cos , tan ,acos ,asin ,atan ,sqrt
+from math import sin , cos , tan ,acos ,asin ,atan ,sqrt , tanh
 from collections import deque
 import gymnasium as gym
 import copy
@@ -38,6 +38,7 @@ class relative:
         # 初始化相对量
 
         self.r = np.linalg.norm(target.position - chaser.position)
+        self.r_0 = self.r
         self.q_y = asin((target.position[1] - chaser.position[1]) / self.r)
         self.q_z = acos((target.position[0] - chaser.position[0]) / (np.linalg.norm(np.array([target.position[0] - chaser.position[0] , target.position[2] - chaser.position[2]])))) 
         self.dq_y = 0
@@ -64,7 +65,7 @@ class relative:
 
 
 
-    def state(self):
+    def state(self,type = "fighter"):
         # 输出相对状态量
 
         r = self.r
@@ -72,15 +73,26 @@ class relative:
         q_z = self.q_z
 
        # 归一化处理
-
-        r_bar = r / self.chaser.R
-        eta_y = asin(-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
-                          cos(self.theta) * sin(q_y) -
-                          sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
-        eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
+        if type == "defender":
+            r_bar = r / self.chaser.R
+            eta_y = asin(-sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * cos(q_z) +
+                          cos(self.target.theta) * sin(q_y) -
+                          sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * sin(q_z))
+            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
                           (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
                            sin(self.theta) * sin(q_y) +
                            cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
+        elif type == "fighter":
+            r_bar = (r-self.chaser.R) / (self.r_0 - self.chaser.R) 
+            eta_y = asin(-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
+                          cos(self.theta) * sin(q_y) -
+                          sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
+            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
+                          (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
+                           sin(self.theta) * sin(q_y) +
+                           cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
+        eta_y = tanh(eta_y)
+        eta_z = tanh(eta_z)
         return r_bar , eta_y , eta_z
 
 
@@ -193,7 +205,7 @@ class FighterEnv(gym.Env):
 
         
         self.observation_space = gym.spaces.Box(low = np.array([0 , -1 , -1 , -np.inf , -1 , -1]) ,
-                                                high = np.array([np.inf , 1 , 1 , 2 , 1 , 1]) ,
+                                                high = np.array([1.1 , 1 , 1 , 2 , 2 , 1]) ,
                                                 shape= (6,),
                                                 dtype = np.float64)
         
@@ -235,28 +247,31 @@ class FighterEnv(gym.Env):
         # 规定时间步长
         self.dt = DT
 
-        if self.Isprint:
+        # 制图数据
+        self.plotdata = {"fighter":{} , "defender":{}, "rewards":[]} 
 
-            # 制图数据
-            self.plotdata = {"fighter":{} , "defender":{}, "rewards":[]} 
+        self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
+        self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
 
-            self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
-            self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
-
-            # 计时器
-            self.t = 0.0
-            self.t_array = []
+        # 计时器
+        self.t = 0.0
+        self.t_array = []
 
         # 未开始突防
         self.start_simulate()
 
+        self.t_0=self.t
+
+        # 初始化总奖励
+        self.total_reward = 0.0
+
 
         # 初始化状态
-        r_1 , q_y1 , q_z1 = self.FD.state()
-        r_2 , q_y2 , q_z2 = self.FT.state()
+        r_1 , q_y1 , q_z1 = self.FD.state("defender")
+        r_2 , q_y2 , q_z2 = self.FT.state("fighter")
+
 
         self.state = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
-
         # 存档
         self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state),"plotdata":copy.deepcopy(self.plotdata),"t_array":copy.deepcopy(self.t_array),"t":self.t}
 
@@ -307,9 +322,14 @@ class FighterEnv(gym.Env):
     def reset(self , seed=None, options=None):
         # 重置环境，返回初始状态
         # 初始化战斗机、防御弹和目标参数（速度、位置、制导律等）
-        self.fighter = copy.deepcopy(self.saves["figher"])
-        self.defender = copy.deepcopy(self.saves["defender"])
-        self.state = copy.deepcopy(self.saves["state"])
+        if not self.Isprint:
+            self.fighter = copy.deepcopy(self.saves["figher"])
+            self.defender = copy.deepcopy(self.saves["defender"])
+            self.state = copy.deepcopy(self.saves["state"])
+            self.total_reward = 0.0
+            self.t_array = copy.deepcopy(self.saves["t_array"])
+            self.plotdata = copy.deepcopy(self.saves["plotdata"])
+            self.t = self.t_0
 
 
 
@@ -342,15 +362,19 @@ class FighterEnv(gym.Env):
 
         
 
-        r_1 , q_y1 , q_z1 = self.FD.state()
-        r_2 , q_y2 , q_z2 = self.FT.state()
+        r_1 , q_y1 , q_z1 = self.FD.state("defender")
+        r_2 , q_y2 , q_z2 = self.FT.state("fighter")
 
         observation = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
 
         reward = self.calculate_reward(action[1])
+        self.total_reward +=reward
 
         terminated = self.check_terminated(observation)
         truncated = False
+
+        if self.Isprint:
+            self.update_plotdata()
 
 
 
@@ -362,7 +386,13 @@ class FighterEnv(gym.Env):
 
     def check_terminated(self,state):
         # 检查是否终止，如飞行器超出范围或被拦截
-        if state[3] * R_FD <= R_DAM:
+
+
+        if any(state < self.observation_space.low) or any(state > self.observation_space.high):
+            return True # 超出范围
+
+
+        elif state[3] * R_FD <= R_DAM:
             return True # 被拦截
         else:
            return False # 未被拦截

@@ -8,17 +8,31 @@ plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显�
 
 myenv = FighterEnv(True)
 
-
+total_reward = 0.0
 model = PPO.load("model_1", env=myenv,device='cpu')
 
 obs , _ = myenv.reset()
 while myenv.check_terminated(obs) == False:
     action, _states = model.predict(obs)
     obs, rewards, dones, _ , _ = myenv.step(action)
+    total_reward += rewards
 
 
 
 
+
+print(obs)
+print(myenv.FD.r)
+print(total_reward)
+
+
+
+plt.figure()
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "防御弹")
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["r"], label = "战斗机")
+plt.xlabel('t/s')
+plt.ylabel('r/m')
+plt.legend()
 
 
 
