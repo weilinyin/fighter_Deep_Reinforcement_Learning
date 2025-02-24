@@ -75,9 +75,11 @@ class relative:
        # 归一化处理
         if type == "defender":
             r_bar = r / self.chaser.R
-            eta_y = asin(-sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * cos(q_z) +
+            eta_y = (-sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * cos(q_z) +
                           cos(self.target.theta) * sin(q_y) -
                           sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * sin(q_z))
+            eta_y = np.clip(eta_y, -1, 1)
+            eta_y = asin(eta_y)
             eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
                           (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
                            sin(self.theta) * sin(q_y) +
@@ -209,8 +211,8 @@ class FighterEnv(gym.Env):
                                                 shape= (6,),
                                                 dtype = np.float64)
         
-        self.action_space = gym.spaces.Box(low = np.array([-2 , 2]) ,
-                                           high = np.array([-2 , 2]) ,
+        self.action_space = gym.spaces.Box(low = np.array([-1 , -1]) ,
+                                           high = np.array([1 , 1]) ,
                                            shape = (2,),
                                            dtype = np.float64) #第一项为加速度角度，第二项为加速度大小
         self.fighter = aircraft(
@@ -275,6 +277,13 @@ class FighterEnv(gym.Env):
 
         # 初始化成功突防标志
         self.success = False
+        self.success_1=False
+
+
+        # 初始化失败标志
+        self.fail = False
+        self.fail_1=False
+
 
 
 
@@ -334,7 +343,8 @@ class FighterEnv(gym.Env):
             self.FD = relative(self.defender, self.fighter)
             self.FT = relative(self.fighter, self.target)
 
-
+        self.success =False
+        self.fail=False
 
         observation = self.state
         return observation , {}
@@ -353,16 +363,20 @@ class FighterEnv(gym.Env):
         
 
         # 战斗机
-        a_y = action[0]
-        a_z = action[1] # 根据动作计算加速度
+        self.a_y = (action[1]+1) * cos(action[0]) * 9.81
+        self.a_z = (action[1]+1) * sin(action[0]) * 9.81 # 根据动作计算加速度
 
-        self.FT.dtheta = a_y/self.fighter.velocity
-        self.FT.dpsi = -a_z/(self.fighter.velocity * cos(self.fighter.theta))
+        self.FT.dtheta = self.a_y/self.fighter.velocity
+        self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
 
         self.FT.simulate(DT)  # 更新战斗机状态
 
-
-
+        # 延迟一回合
+        if self.success:
+            self.success_1=True
+        
+        if self.fail:
+            self.fail_1=True
         
 
         r_1 , q_y1 , q_z1 = self.FD.state("defender")
@@ -370,9 +384,10 @@ class FighterEnv(gym.Env):
 
         observation = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
 
-        reward = self.calculate_reward(action[1])
+        reward = self.calculate_reward()
 
-        terminated = self.check_terminated(observation)
+        terminated = self.success or self.fail
+
         truncated = False
 
         if self.Isprint:
@@ -383,23 +398,7 @@ class FighterEnv(gym.Env):
 
 
         return observation, reward, terminated, truncated , {}
-    
 
-
-    def check_terminated(self,state):
-        # 检查是否终止，如飞行器超出范围或被拦截
-
-        if self.success:
-            return True # 成功突防
-
-        elif any(state < self.observation_space.low) or any(state > self.observation_space.high):
-            return True # 超出范围
-
-
-        elif state[3] * R_FD <= R_DAM:
-            return True # 被拦截
-        else:
-           return False # 未被拦截
 
 
 
@@ -414,7 +413,7 @@ class FighterEnv(gym.Env):
         self.eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
 
     
-    def calculate_reward(self,a_F):
+    def calculate_reward(self):
         # 根据论文公式计算奖励（突防、被拦截、控制能量等）
 
         self.calculate_eta()
@@ -423,13 +422,17 @@ class FighterEnv(gym.Env):
 
 
         
-        if self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft <= ETA_FT:
+        if self.FT.r <= R_FT and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft <= ETA_FT:
             self.success = True
             return K_PLUS
-        elif self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft > ETA_FT:
+        
+        elif self.FD.r <= R_FD and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft > ETA_FT:
             return 0
+        
         elif self.FD.r < R_DAM:
+            self.fail = True
             return K_MINUS
+        
         else:
             if self.eta_ft <= ETA_FT:
                 reward_1 = K_R1 * cos(self.eta_ft)
@@ -437,11 +440,12 @@ class FighterEnv(gym.Env):
                 reward_1 = -0.05
             
             if self.FD.dr < 0:
-                reward_2 = K_R2 * np.exp(-self.FD.r/100)
+                reward_2 = -K_R2 * np.exp(-self.FD.r/100)
             else:
                 reward_2 = 0
             
-            reward_3 = -K_R3 * a_F ** 2
+            reward_3 = -K_R3 * (self.a_y ** 2 + self.a_z ** 2)
+
 
             return reward_1 + reward_2 + reward_3
 

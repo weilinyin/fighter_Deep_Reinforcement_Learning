@@ -12,7 +12,7 @@ myenv = FighterEnv(True)
 model = PPO.load("model_1", env=myenv,device='cpu')
 
 obs , _ = myenv.reset()
-while myenv.check_terminated(obs) == False:
+while not (myenv.success or myenv.fail):
     action, _states = model.predict(obs)
     obs, rewards, dones, _ , _ = myenv.step(action)
 
