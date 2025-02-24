@@ -86,9 +86,11 @@ class relative:
                            cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
         elif type == "fighter":
             r_bar = (r-self.chaser.R) / (self.r_0 - self.chaser.R) 
-            eta_y = asin(-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
+
+            eta_y = (-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
                           cos(self.theta) * sin(q_y) -
                           sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
+            eta_y = np.clip(eta_y, -1, 1)
             eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
                           (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
                            sin(self.theta) * sin(q_y) +
@@ -277,12 +279,12 @@ class FighterEnv(gym.Env):
 
         # 初始化成功突防标志
         self.success = False
-        self.success_1=False
+
 
 
         # 初始化失败标志
         self.fail = False
-        self.fail_1=False
+
 
 
 
@@ -371,12 +373,7 @@ class FighterEnv(gym.Env):
 
         self.FT.simulate(DT)  # 更新战斗机状态
 
-        # 延迟一回合
-        if self.success:
-            self.success_1=True
-        
-        if self.fail:
-            self.fail_1=True
+
         
 
         r_1 , q_y1 , q_z1 = self.FD.state("defender")
