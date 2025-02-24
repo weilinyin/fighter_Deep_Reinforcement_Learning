@@ -12,8 +12,8 @@ R_FD = 18000
 R_FT = 30000
 ETA_FT = 10 * np.pi / 180
 DT = 0.1
-K_PLUS = 50
-K_MINUS = -50
+K_PLUS = 100
+K_MINUS = -100
 K_R1 = 0.1
 K_R2 = 1
 K_R3 = 2e-5
@@ -248,7 +248,7 @@ class FighterEnv(gym.Env):
         self.dt = DT
 
         # 制图数据
-        self.plotdata = {"fighter":{} , "defender":{}, "rewards":[]} 
+        self.plotdata = {"fighter":{} , "defender":{}, "rewards":[] , "eta":[]} 
 
         self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
         self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
@@ -273,7 +273,7 @@ class FighterEnv(gym.Env):
 
         self.state = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
         # 存档
-        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state),"plotdata":copy.deepcopy(self.plotdata),"t_array":copy.deepcopy(self.t_array),"t":self.t}
+        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state)}
 
 
 
@@ -313,6 +313,8 @@ class FighterEnv(gym.Env):
         self.plotdata["defender"]["a_z"].append(self.FD.a_z)
         self.plotdata["defender"]["r"].append(self.FD.r)
 
+        self.plotdata["eta"].append(self.eta_ft)
+
         self.t_array.append(self.t)
         self.t += self.dt
 
@@ -327,8 +329,6 @@ class FighterEnv(gym.Env):
             self.defender = copy.deepcopy(self.saves["defender"])
             self.state = copy.deepcopy(self.saves["state"])
             self.total_reward = 0.0
-            self.t_array = copy.deepcopy(self.saves["t_array"])
-            self.plotdata = copy.deepcopy(self.saves["plotdata"])
             self.t = self.t_0
 
 
@@ -412,20 +412,20 @@ class FighterEnv(gym.Env):
         l_ft = self.FT.r * np.array([cos(self.FT.q_y) * cos(self.FT.q_z),
                                     -cos(self.FT.q_y) * sin(self.FT.q_z),
                                     sin(self.FT.q_y)])
-        eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
+        self.eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
 
 
         
-        if self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and eta_ft <= ETA_FT:
+        if self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft <= ETA_FT:
 
             return K_PLUS
-        elif self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and eta_ft > ETA_FT:
+        elif self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft > ETA_FT:
             return 0
         elif self.FD.r < R_DAM:
             return -K_MINUS
         else:
-            if eta_ft <= ETA_FT:
-                reward_1 = K_R1 * cos(eta_ft)
+            if self.eta_ft <= ETA_FT:
+                reward_1 = K_R1 * cos(self.eta_ft)
             else:
                 reward_1 = -0.05
             
