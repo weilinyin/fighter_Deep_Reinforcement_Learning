@@ -209,8 +209,8 @@ class FighterEnv(gym.Env):
                                                 shape= (6,),
                                                 dtype = np.float64)
         
-        self.action_space = gym.spaces.Box(low = np.array([-np.pi , 0]) ,
-                                           high = np.array([np.pi , np.sqrt(2)]) ,
+        self.action_space = gym.spaces.Box(low = np.array([-2 , 2]) ,
+                                           high = np.array([-2 , 2]) ,
                                            shape = (2,),
                                            dtype = np.float64) #第一项为加速度角度，第二项为加速度大小
         self.fighter = aircraft(
@@ -353,8 +353,8 @@ class FighterEnv(gym.Env):
         
 
         # 战斗机
-        a_y = action[1] * cos(action[0])
-        a_z = action[1] * sin(action[0]) # 根据动作计算加速度
+        a_y = action[0]
+        a_z = action[1] # 根据动作计算加速度
 
         self.FT.dtheta = a_y/self.fighter.velocity
         self.FT.dpsi = -a_z/(self.fighter.velocity * cos(self.fighter.theta))
@@ -465,4 +465,5 @@ class FighterEnv_2(FighterEnv):
             if self.Isprint:
             
                 # 加入观察数据
+                self.calculate_eta()
                 self.update_plotdata()

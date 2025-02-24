@@ -41,7 +41,7 @@ class CustomPolicy(ActorCriticPolicy):
     def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
         # 禁用自动构建的mlp_extractor，替换为自定义网络
-        self.mlp_extractor = CustomNetwork(self.observation_space.shape[0])
+        self.mlp_extractor = CustomNetwork(self.features_dim)
 
 
 class EpisodeRewardCallback(BaseCallback):
@@ -66,11 +66,10 @@ class GaussianNoiseWrapper(ActionWrapper):
         noise = np.random.normal(0, self.noise_std, size=action.shape)
         action = np.clip(action + noise, self.action_space.low, self.action_space.high)
         return action
-    
-policy_kwargs = {
-    "net_arch": dict(pi=[300, 300], vf=[300 , 300])
-}
 
+
+policy_kwargs = dict(activation_fn=th.nn.ReLU,
+                     net_arch=dict(pi=[300, 300], vf=[300, 300]))
 
 
 myenv = FighterEnv()
@@ -82,7 +81,7 @@ myenv = Monitor(myenv)
 callback = EpisodeRewardCallback()
 
 model_1 = PPO("MlpPolicy", env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
-              gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2 , policy_kwargs = policy_kwargs)
+              gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2 ,policy_kwargs=policy_kwargs)
 
 model_1.learn(total_timesteps=4e5, log_interval=4 ,callback = callback)
 
