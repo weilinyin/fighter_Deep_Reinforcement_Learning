@@ -262,8 +262,6 @@ class FighterEnv(gym.Env):
 
         self.t_0=self.t
 
-        # 初始化总奖励
-        self.total_reward = 0.0
 
 
         # 初始化状态
@@ -274,6 +272,9 @@ class FighterEnv(gym.Env):
         self.state = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
         # 存档
         self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state)}
+
+        # 初始化成功突防标志
+        self.success = False
 
 
 
@@ -290,6 +291,7 @@ class FighterEnv(gym.Env):
             
             # 加入观察数据
             if self.Isprint:
+                self.calculate_eta()
                 self.update_plotdata()
 
 
@@ -328,8 +330,9 @@ class FighterEnv(gym.Env):
             self.fighter = copy.deepcopy(self.saves["figher"])
             self.defender = copy.deepcopy(self.saves["defender"])
             self.state = copy.deepcopy(self.saves["state"])
-            self.total_reward = 0.0
             self.t = self.t_0
+            self.FD = relative(self.defender, self.fighter)
+            self.FT = relative(self.fighter, self.target)
 
 
 
@@ -368,7 +371,6 @@ class FighterEnv(gym.Env):
         observation = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
 
         reward = self.calculate_reward(action[1])
-        self.total_reward +=reward
 
         terminated = self.check_terminated(observation)
         truncated = False
@@ -387,8 +389,10 @@ class FighterEnv(gym.Env):
     def check_terminated(self,state):
         # 检查是否终止，如飞行器超出范围或被拦截
 
+        if self.success:
+            return True # 成功突防
 
-        if any(state < self.observation_space.low) or any(state > self.observation_space.high):
+        elif any(state < self.observation_space.low) or any(state > self.observation_space.high):
             return True # 超出范围
 
 
@@ -400,12 +404,7 @@ class FighterEnv(gym.Env):
 
 
 
-
-
-    
-    def calculate_reward(self,a_F):
-        # 根据论文公式计算奖励（突防、被拦截、控制能量等）
-
+    def calculate_eta(self):
         v_f = self.fighter.velocity * np.array([cos(self.FT.theta) * cos(self.FT.psi),
                                            -cos(self.FT.theta) * sin(self.FT.psi),
                                             sin(self.FT.theta)])  # 战机速度矢量
@@ -414,15 +413,23 @@ class FighterEnv(gym.Env):
                                     sin(self.FT.q_y)])
         self.eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
 
+    
+    def calculate_reward(self,a_F):
+        # 根据论文公式计算奖励（突防、被拦截、控制能量等）
+
+        self.calculate_eta()
+
+
+
 
         
         if self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft <= ETA_FT:
-
+            self.success = True
             return K_PLUS
         elif self.state[3] <= 0 and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft > ETA_FT:
             return 0
         elif self.FD.r < R_DAM:
-            return -K_MINUS
+            return K_MINUS
         else:
             if self.eta_ft <= ETA_FT:
                 reward_1 = K_R1 * cos(self.eta_ft)

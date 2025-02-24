@@ -21,8 +21,6 @@ while myenv.check_terminated(obs) == False:
 
 
 print(obs)
-print(myenv.FD.r)
-print(myenv.total_reward)
 
 
 
