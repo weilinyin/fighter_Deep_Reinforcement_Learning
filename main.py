@@ -93,7 +93,7 @@ callback = EpisodeRewardCallback()
 model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
               gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  )
 
-model_1.learn(total_timesteps=4e5, log_interval=4 ,callback = callback )
+model_1.learn(total_timesteps=2e5, log_interval=4 ,callback = callback )
 
 model_1.save("model_1")
 del model_1

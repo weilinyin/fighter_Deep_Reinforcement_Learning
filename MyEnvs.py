@@ -7,11 +7,11 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-R_DAM = 15
+R_DAM = 20
 R_FD = 18000
 R_FT = 30000
 ETA_FT = 10 * np.pi / 180
-DT = 0.1
+DT = 1
 K_PLUS = 100
 K_MINUS = -100
 K_R1 = 0.1
@@ -360,7 +360,12 @@ class FighterEnv(gym.Env):
         # 按时间步长模拟飞行器运动
 
         # 防御弹
-        self.FD.simulate(DT)
+        if self.FD.r <= 5000:
+            self.dt = 0.1
+        else:
+            self.dt = DT
+
+        self.FD.simulate(self.dt)
         self.FD.proportional_navigation()
 
         a_y = action[0] * 9.81 * 2
@@ -381,7 +386,7 @@ class FighterEnv(gym.Env):
         self.FT.dtheta = self.a_y/self.fighter.velocity
         self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
 
-        self.FT.simulate(DT)  # 更新战斗机状态
+        self.FT.simulate(self.dt)  # 更新战斗机状态
 
 
         
