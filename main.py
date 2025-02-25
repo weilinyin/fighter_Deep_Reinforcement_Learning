@@ -3,6 +3,8 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import BaseCallback
 from math import log
+import numpy as np
+
 
 import matplotlib.pyplot as plt
 
@@ -67,19 +69,40 @@ class CustomPolicy(ActorCriticPolicy):
 
 
 
-class EpisodeRewardCallback(BaseCallback):
-    def __init__(self, verbose=0):
+class SmartStopCallback(BaseCallback):
+    def __init__(self, 
+                 avg_window=30,         # 平均奖励计算窗口
+                 stop_threshold=200,     # 奖励达标连续次数
+                 target_reward=300,     # 奖励阈值
+                 verbose=0):
         super().__init__(verbose)
-        self.episode_rewards = []
+        self.avg_window = avg_window
+        self.stop_threshold = stop_threshold
+        self.target_reward = target_reward
+        self.episode_rewards = []        # 原始奖励记录
+        self.mean_rewards = []           # 滑动平均奖励
+        self.consecutive_count = 0       # 连续达标计数器
 
     def _on_step(self) -> bool:
-        # 遍历所有子环境的info
+        # 收集所有环境的episode奖励
         for info in self.locals.get('infos', []):
             if 'episode' in info:
                 self.episode_rewards.append(info['episode']['r'])
+                
+                # 计算滑动平均
+                if len(self.episode_rewards) >= self.avg_window:
+                    avg_reward = np.mean(self.episode_rewards[-self.avg_window:])
+                    self.mean_rewards.append(avg_reward)
+                    
+                    # 检查停止条件
+                    if avg_reward >= self.target_reward:
+                        self.consecutive_count += 1
+                        if self.consecutive_count >= self.stop_threshold:
+                            self.model.stop_training = True  # 触发停止训练
+                            return False
+                    else:
+                        self.consecutive_count = 0  # 重置计数器
         return True
-
-
 
 
 
@@ -88,7 +111,8 @@ myenv = FighterEnv()
 
 myenv = Monitor(myenv)
 
-callback = EpisodeRewardCallback()
+callback = SmartStopCallback(target_reward=90 , avg_window=30 , stop_threshold=200)
+
 
 model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
               gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  )
@@ -98,12 +122,29 @@ model_1.learn(total_timesteps=1e6, log_interval=4 ,callback = callback )
 model_1.save("model_1")
 del model_1
 
-# 绘图
-plt.plot(callback.episode_rewards)
+# 绘制训练曲线
+plt.figure(figsize=(12, 6))
+
+# 绘制原始奖励（透明显示趋势）
+plt.plot(callback.episode_rewards, alpha=0.2, label='Raw Reward')
+
+# 绘制滑动平均奖励
+if len(callback.mean_rewards) > 0:
+    x_axis = np.arange(len(callback.mean_rewards)) + callback.avg_window
+    plt.plot(x_axis, callback.mean_rewards, color='red', label='30-Episode Average')
+
+# 标注停止训练的位置
+if callback.consecutive_count >= callback.stop_threshold:
+    stop_episode = len(callback.episode_rewards) - callback.stop_threshold
+    plt.axvline(x=stop_episode, color='green', linestyle='--', 
+               label='Training Stopped')
+
 plt.xlabel('Episode')
-plt.ylabel('Total Reward')
-plt.title('Training Episode Rewards')
-plt.savefig('fig\Reward_per_episode.png')
+plt.ylabel('Reward')
+plt.title(f'Training Progress (Stopped at Episode {len(callback.episode_rewards)})')
+plt.legend()
+plt.grid(True)
+plt.savefig('fig\PPO三维仿真\Training_Progress.png')
 plt.show()
 
 
