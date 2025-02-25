@@ -12,9 +12,6 @@
 ## 基于PPO，三维突防场景
 
 > 作者没有提到是否有可变的时间步长，复现时发现在合适的机弹距离内减小步长才能训练出来
-
-
-
 ![PPO三维仿真/Training_Progress](fig/PPO三维仿真/Training_Progress.png)
 ![PPO三维仿真/纵向轨迹图](fig/PPO三维仿真/纵向轨迹图.png)
 ![PPO三维仿真/侧向轨迹图](fig/PPO三维仿真/侧向轨迹图.png)
