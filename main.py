@@ -54,11 +54,11 @@ class CustomPolicy(ActorCriticPolicy):
         kwargs["ortho_init"] = False
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
-        self.log_std_init = log(0.5)  # 固定log_std的初始值
-        self.log_std = nn.Parameter(
-            th.ones(2) * self.log_std_init, 
-            requires_grad=False
-        )
+        self.log_std_init = 0  # 固定log_std的初始值
+        #self.log_std = nn.Parameter(
+            #th.ones(2) * self.log_std_init, 
+            #requires_grad=False
+        #)
         
         
         # 禁用自动构建的mlp_extractor，替换为自定义网络
@@ -93,7 +93,7 @@ callback = EpisodeRewardCallback()
 model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
               gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  )
 
-model_1.learn(total_timesteps=2e5, log_interval=4 ,callback = callback )
+model_1.learn(total_timesteps=1e6, log_interval=4 ,callback = callback )
 
 model_1.save("model_1")
 del model_1

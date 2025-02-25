@@ -1,15 +1,14 @@
 import numpy as np
 from math import sin , cos , tan ,acos ,asin ,atan ,sqrt , tanh
-from collections import deque
 import gymnasium as gym
 import copy
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+
 
 
 R_DAM = 20
 R_FD = 18000
 R_FT = 30000
+R_CHANGE = 5000
 ETA_FT = 10 * np.pi / 180
 DT = 1
 K_PLUS = 100
@@ -360,14 +359,12 @@ class FighterEnv(gym.Env):
         # 按时间步长模拟飞行器运动
 
         # 防御弹
-        if self.FD.r <= 5000:
+        if self.FD.r <= R_CHANGE:
             self.dt = 0.1
         else:
             self.dt = DT
 
-        self.FD.simulate(self.dt)
-        self.FD.proportional_navigation()
-
+        
         a_y = action[0] * 9.81 * 2
         a_z = action[1] * 9.81 * 2
 
@@ -386,8 +383,10 @@ class FighterEnv(gym.Env):
         self.FT.dtheta = self.a_y/self.fighter.velocity
         self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
 
-        self.FT.simulate(self.dt)  # 更新战斗机状态
+        self.FT.simulate(self.dt)
 
+        self.FD.simulate(self.dt)
+        self.FD.proportional_navigation()
 
         
 
@@ -405,7 +404,10 @@ class FighterEnv(gym.Env):
         if self.Isprint:
             self.update_plotdata()
 
+        
 
+
+        
 
 
 

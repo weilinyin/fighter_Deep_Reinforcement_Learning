@@ -21,7 +21,7 @@ while not (myenv.success or myenv.fail):
 
 
 print(obs)
-
+print(rewards)
 
 
 plt.figure()
