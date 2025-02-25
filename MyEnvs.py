@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-R_DAM = 20
+R_DAM = 15
 R_FD = 18000
 R_FT = 30000
 ETA_FT = 10 * np.pi / 180
@@ -58,7 +58,7 @@ class relative:
 
     def check_detection(self):
         # 检测战机是否探测到导弹
-        if self.r < self.chaser.R:
+        if self.r < self.target.R:
             return True
         else:
             return False
@@ -216,14 +216,14 @@ class FighterEnv(gym.Env):
         self.action_space = gym.spaces.Box(low = np.array([-1 , -1]) ,
                                            high = np.array([1 , 1]) ,
                                            shape = (2,),
-                                           dtype = np.float64) #第一项为加速度角度，第二项为加速度大小
+                                           dtype = np.float64) 
         self.fighter = aircraft(
             np.array([0, 10000, 0]).astype(np.float64),
             0,
             0,
             900,
             2*9.81,
-            18000
+            R_FT
         )
         self.defender = aircraft(
             np.array([40000, 5000, -5000]).astype(np.float64),
@@ -231,7 +231,7 @@ class FighterEnv(gym.Env):
             3.23,
             1000,
             5*9.81,
-            30000
+            R_FD
         )
         self.target = aircraft(
             np.array([50000,0,0]).astype(np.float64),
@@ -362,11 +362,21 @@ class FighterEnv(gym.Env):
         # 防御弹
         self.FD.simulate(DT)
         self.FD.proportional_navigation()
-        
 
-        # 战斗机
-        self.a_y = (action[1]+1) * cos(action[0]) * 9.81
-        self.a_z = (action[1]+1) * sin(action[0]) * 9.81 # 根据动作计算加速度
+        a_y = action[0] * 9.81 * 2
+        a_z = action[1] * 9.81 * 2
+
+        a = sqrt(a_y**2 + a_z**2)
+
+
+        if a > self.fighter.a_max:
+            self.a_y = a_y * self.fighter.a_max / a
+            self.a_z = a_z * self.fighter.a_max / a
+        else:
+            self.a_y = a_y
+            self.a_z = a_z
+
+
 
         self.FT.dtheta = self.a_y/self.fighter.velocity
         self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))

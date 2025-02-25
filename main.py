@@ -2,6 +2,7 @@ from MyEnvs import FighterEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import BaseCallback
+from math import log
 
 import matplotlib.pyplot as plt
 
@@ -53,7 +54,7 @@ class CustomPolicy(ActorCriticPolicy):
         kwargs["ortho_init"] = False
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
-        self.log_std_init = -0.5  # 固定log_std的初始值
+        self.log_std_init = log(0.5)  # 固定log_std的初始值
         self.log_std = nn.Parameter(
             th.ones(2) * self.log_std_init, 
             requires_grad=False
@@ -90,7 +91,7 @@ myenv = Monitor(myenv)
 callback = EpisodeRewardCallback()
 
 model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
-              gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.3  )
+              gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  )
 
 model_1.learn(total_timesteps=4e5, log_interval=4 ,callback = callback )
 
