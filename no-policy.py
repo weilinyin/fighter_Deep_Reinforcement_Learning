@@ -1,11 +1,18 @@
-from MyEnvs import FighterEnv_2
-import numpy as np
+from MyEnvs import FighterEnv
 import matplotlib.pyplot as plt
+import math as m
+import numpy as np
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
 plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显示为方块的问题
 
-myenv = FighterEnv_2(True)
+myenv = FighterEnv(True)
+
+obs , _ = myenv.reset()
+for i in range(1000):
+    a_y , a_z = myenv.FT.proportional_navigation()
+    action = np.array([m.asin(a_z/m.sqrt(a_y **2 + a_z **2)) , m.sqrt(a_y **2 + a_z **2)])
+    obs, rewards, dones, _ , _ = myenv.step(action)
 
 
 

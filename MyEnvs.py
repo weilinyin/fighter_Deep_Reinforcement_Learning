@@ -29,7 +29,24 @@ class aircraft:
         self.velocity = velocity # 速度 (v)
         self.a_max=a_max # 最大过载 (a_max)
         self.R = R # r*
-    
+        self.a_y = 0
+        self.a_z = 0
+
+    def update(self, dt, a_y ,a_z):
+
+        self.a_y = a_y
+        self.a_z = a_z
+
+        dposition = self.velocity * np.array([cos(self.theta) * cos(self.psi) , 
+                                              sin(self.theta) , 
+                                              -cos(self.theta) * sin(self.psi)])
+        dtheta = a_y / self.velocity
+        dpsi = - a_z / (self.velocity * cos(self.theta))
+
+        self.position += dposition * dt
+        self.theta += dtheta * dt
+        self.psi +=dpsi * dt
+        
 
 
 
@@ -39,38 +56,44 @@ class relative:
 
         self.r = np.linalg.norm(target.position - chaser.position)
         self.r_0 = self.r
-        self.q_y = asin((target.position[1] - chaser.position[1]) / self.r)
+        self.r = np.array([self.r , self.r]) #[上一dt和这一dt]
+
+
+
+        self.q_y = asin((target.position[1] - chaser.position[1]) / self.r[1])
+        self.q_y = np.array([self.q_y , self.q_y])
+
+
         self.q_z = acos((target.position[0] - chaser.position[0]) / (np.linalg.norm(np.array([target.position[0] - chaser.position[0] , target.position[2] - chaser.position[2]])))) 
+        self.q_z = np.array([self.q_z , self.q_z])
+
+
         self.dq_y = 0
         self.dq_z = 0
-
-
         self.dr = 0
         self.dq_y = 0
         self.dq_z = 0
 
+
         self.chaser = chaser
         self.target = target
-        self.theta = self.chaser.theta
-        self.psi = self.chaser.psi
-        self.dtheta = 0
-        self.dpsi = 0
+
 
     def check_detection(self):
         # 检测战机是否探测到导弹
-        if self.r < self.chaser.R:
+        if self.r[1] < self.chaser.R:
             return True
         else:
             return False
 
 
 
-    def state(self,type = "fighter"):
+    def state(self,type):
         # 输出相对状态量
 
-        r = self.r
-        q_y = self.q_y
-        q_z = self.q_z
+        r = self.r[1]
+        q_y = self.q_y[1]
+        q_z = self.q_z[1]
 
        # 归一化处理
         if type == "defender":
@@ -80,21 +103,21 @@ class relative:
                           sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * sin(q_z))
             eta_y = np.clip(eta_y, -1, 1)
             eta_y = asin(eta_y)
-            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
-                          (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
-                           sin(self.theta) * sin(q_y) +
-                           cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
+            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.chaser.psi) -cos(q_y) * cos(q_z) * sin(self.chaser.psi))/
+                          (cos(q_y) * cos(q_z) * cos(self.chaser.theta) * cos(self.chaser.psi) +
+                           sin(self.chaser.theta) * sin(q_y) +
+                           cos(q_y) * sin(q_z) * cos(self.chaser.theta) * sin(self.chaser.psi)))
         elif type == "fighter":
             r_bar = (r-self.chaser.R) / (self.r_0 - self.chaser.R) 
 
-            eta_y = (-sin(self.theta) * cos(self.psi) * cos(q_y) * cos(q_z) +
-                          cos(self.theta) * sin(q_y) -
-                          sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
+            eta_y = (-sin(self.chaser.theta) * cos(self.chaser.psi) * cos(q_y) * cos(q_z) +
+                          cos(self.chaser.theta) * sin(q_y) -
+                          sin(self.chaser.theta) * cos(self.chaser.psi) * cos(q_y) * sin(q_z))
             eta_y = np.clip(eta_y, -1, 1)
-            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
-                          (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
-                           sin(self.theta) * sin(q_y) +
-                           cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
+            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.chaser.psi) -cos(q_y) * cos(q_z) * sin(self.chaser.psi))/
+                          (cos(q_y) * cos(q_z) * cos(self.chaser.theta) * cos(self.chaser.psi) +
+                           sin(self.chaser.theta) * sin(q_y) +
+                           cos(q_y) * sin(q_z) * cos(self.chaser.theta) * sin(self.chaser.psi)))
         eta_y = tanh(eta_y)
         eta_z = tanh(eta_z)
         return r_bar , eta_y , eta_z
@@ -106,87 +129,46 @@ class relative:
     def proportional_navigation(self):
         # 比例导引法
 
-        self.dtheta = 3 * self.dq_y * cos(self.q_z - self.psi)
-        self.dpsi = 3 * self.dq_z - 3 * self.dq_y * tan(self.theta) * sin(self.q_z - self.psi)
+        dtheta = 3 * self.dq_y * cos(self.q_z[1] - self.chaser.psi)
+        dpsi = 3 * self.dq_z - 3 * self.dq_y * tan(self.chaser.theta) * sin(self.q_z[1] - self.chaser.psi)
+
+        a_y , a_z = self.calculate_a(dtheta,dpsi)
+
+        return a_y , a_z
 
 
     
-    def calculate_a(self):
+    def calculate_a(self,dtheta,dpsi):
 
-        self.a_y = self.dtheta * self.chaser.velocity
-        self.a_z = -self.dpsi * self.chaser.velocity * cos(self.theta)
+        a_y = dtheta * self.chaser.velocity
+        a_z = -dpsi * self.chaser.velocity * cos(self.chaser.theta)
 
-        a = sqrt(self.a_y**2 + self.a_z**2)
-
+        a = sqrt(a_y**2 + a_z**2)
 
         if a >self.chaser.a_max:
-            self.a_y = self.a_y * self.chaser.a_max / a
-            self.a_z = self.a_z * self.chaser.a_max / a
-            self.dtheta = self.a_y / self.chaser.velocity
-            self.dpsi = -self.a_z / (self.chaser.velocity * cos(self.theta))
+            a_y = a_y * self.chaser.a_max / a
+            a_z = a_z * self.chaser.a_max / a
 
 
+        return a_y , a_z
 
 
+    def update(self):
+        # 模拟过程中更新相对量
 
+        # 更新微分量
+        self.dr = self.r[1]-self.r[0]
+        self.dq_y = self.q_y[1]-self.q_y[0]
+        self.dq_z = self.q_z[1]-self.q_z[0]
 
-            
+        self.r[0] = self.r[1]
+        self.q_y[0] = self.q_y[1]
+        self.q_z[0] = self.q_z[1]
 
-
-
-
-
-
-
-
-
-
-
-    def simulate(self,dt):
-        # 模拟飞行器运动
-
-
-
-
-        self.dr = (self.target.velocity * (cos(self.target.theta) * cos(self.q_y) * cos(self.target.psi - self.q_z) +
-                                            sin(self.target.theta) * sin(self.q_y)) -
-                    self.chaser.velocity * (cos(self.theta) * cos(self.q_y) * cos(self.psi - self.q_z) +
-                                            sin(self.theta) * sin(self.q_y)))
-            
-        self.dq_y = (self.target.velocity * (sin(self.target.theta) * cos(self.q_y) -
-                                            cos(self.target.theta) * sin(self.q_y) * cos(self.target.psi - self.q_z)) -
-                        self.chaser.velocity * (sin(self.theta) * cos(self.q_y) -
-                                            cos(self.theta) * sin(self.q_y) * cos(self.psi - self.q_z)))/self.r
-        
-        self.dq_z = (self.target.velocity * cos(self.target.theta) * sin(self.psi - self.q_z) -
-                        self.chaser.velocity * cos(self.theta) * sin(self.psi - self.q_z))/(self.r * cos(self.q_y))
-        
-
-        self.r += self.dr * dt
-        self.q_y += self.dq_y * dt
-        self.q_z += self.dq_z * dt
-
-        self.calculate_a()
-
-        self.theta += self.dtheta * dt 
-        self.psi += self.dpsi * dt
-
-        # 更新位置
-        
-        self.chaser.position[0] = self.target.position[0] - self.r * cos(self.q_y) * cos(self.q_z)
-        self.chaser.position[1] = self.target.position[1] - self.r * sin(self.q_y)
-        self.chaser.position[2] = self.target.position[2] + self.r * cos(self.q_y) * sin(self.q_z)
-        self.chaser.theta = self.theta
-        self.chaser.psi = self.psi
-
-
-
-
-        
-
-
-
-
+        self.r[1] = np.linalg.norm(self.target.position - self.chaser.position)
+        self.q_y[1] = asin((self.target.position[1] - self.chaser.position[1]) / self.r[0])
+        self.q_z[1] = acos((self.target.position[0] - self.chaser.position[0]) / 
+                                      (np.linalg.norm(np.array([self.target.position[0] - self.chaser.position[0] , self.target.position[2] - self.chaser.position[2]])))) 
 
 
 
@@ -294,12 +276,15 @@ class FighterEnv(gym.Env):
         while not self.FD.check_detection():
             
             
-            self.FT.simulate(self.dt) 
-            self.FD.simulate(self.dt)
+            a_y , a_z = self.FT.proportional_navigation()
+            self.fighter.update(self.dt, a_y , a_z)
 
-            self.FT.proportional_navigation()
-            self.FD.proportional_navigation()
-            
+            a_y , a_z = self.FD.proportional_navigation()
+            self.defender.update(self.dt, a_y , a_z)
+
+            self.FT.update()
+            self.FD.update()
+ 
             # 加入观察数据
             if self.Isprint:
                 self.calculate_eta()
@@ -311,19 +296,19 @@ class FighterEnv(gym.Env):
         self.plotdata["fighter"]["x"].append(self.fighter.position[0])
         self.plotdata["fighter"]["y"].append(self.fighter.position[1])
         self.plotdata["fighter"]["z"].append(self.fighter.position[2])
-        self.plotdata["fighter"]["theta"].append(self.FT.theta)
-        self.plotdata["fighter"]["psi"].append(self.FT.psi)
-        self.plotdata["fighter"]["a_y"].append(self.FT.a_y)
-        self.plotdata["fighter"]["a_z"].append(self.FT.a_z)
+        self.plotdata["fighter"]["theta"].append(self.fighter.theta)
+        self.plotdata["fighter"]["psi"].append(self.fighter.psi)
+        self.plotdata["fighter"]["a_y"].append(self.fighter.a_y)
+        self.plotdata["fighter"]["a_z"].append(self.fighter.a_z)
         self.plotdata["fighter"]["r"].append(self.FT.r)
 
         self.plotdata["defender"]["x"].append(self.defender.position[0])
         self.plotdata["defender"]["y"].append(self.defender.position[1])
         self.plotdata["defender"]["z"].append(self.defender.position[2])
-        self.plotdata["defender"]["theta"].append(self.FD.theta)
-        self.plotdata["defender"]["psi"].append(self.FD.psi)
-        self.plotdata["defender"]["a_y"].append(self.FD.a_y)
-        self.plotdata["defender"]["a_z"].append(self.FD.a_z)
+        self.plotdata["defender"]["theta"].append(self.defender.theta)
+        self.plotdata["defender"]["psi"].append(self.defender.psi)
+        self.plotdata["defender"]["a_y"].append(self.defender.a_y)
+        self.plotdata["defender"]["a_z"].append(self.defender.a_z)
         self.plotdata["defender"]["r"].append(self.FD.r)
 
         self.plotdata["eta"].append(self.eta_ft)
@@ -359,21 +344,21 @@ class FighterEnv(gym.Env):
     
         # 按时间步长模拟飞行器运动
 
-        # 防御弹
-        self.FD.simulate(DT)
-        self.FD.proportional_navigation()
         
 
         # 战斗机
-        self.a_y = (action[1]+1) * cos(action[0]) * 9.81
-        self.a_z = (action[1]+1) * sin(action[0]) * 9.81 # 根据动作计算加速度
+        a_y = (action[1]+1) * cos(action[0]) * 9.81
+        a_z = (action[1]+1) * sin(action[0]) * 9.81 # 根据动作计算加速度
 
-        self.FT.dtheta = self.a_y/self.fighter.velocity
-        self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
+        self.fighter.update(self.dt, a_y , a_z)
 
-        self.FT.simulate(DT)  # 更新战斗机状态
+        # 防御弹
+        a_y , a_z = self.FD.proportional_navigation()
+        self.defender.update(self.dt, a_y , a_z)  
 
-
+        # 更新相对量
+        self.FT.update()
+        self.FD.update()
         
 
         r_1 , q_y1 , q_z1 = self.FD.state("defender")
@@ -401,12 +386,10 @@ class FighterEnv(gym.Env):
 
 
     def calculate_eta(self):
-        v_f = self.fighter.velocity * np.array([cos(self.FT.theta) * cos(self.FT.psi),
-                                           -cos(self.FT.theta) * sin(self.FT.psi),
-                                            sin(self.FT.theta)])  # 战机速度矢量
-        l_ft = self.FT.r * np.array([cos(self.FT.q_y) * cos(self.FT.q_z),
-                                    -cos(self.FT.q_y) * sin(self.FT.q_z),
-                                    sin(self.FT.q_y)])
+        v_f = self.fighter.velocity * np.array([cos(self.fighter.theta) * cos(self.fighter.psi),
+                                           -cos(self.fighter.theta) * sin(self.fighter.psi),
+                                            sin(self.fighter.theta)])  # 战机速度矢量
+        l_ft = self.target.position - self.fighter.position
         self.eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
 
     
@@ -419,14 +402,14 @@ class FighterEnv(gym.Env):
 
 
         
-        if self.FT.r <= R_FT and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft <= ETA_FT:
+        if self.FT.r[1] <= R_FT and self.FD.dr > 0 and self.FD.r[1] > R_DAM and self.eta_ft <= ETA_FT:
             self.success = True
             return K_PLUS
         
-        elif self.FD.r <= R_FD and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft > ETA_FT:
+        elif self.FD.r[1] <= R_FD and self.FD.dr > 0 and self.FD.r[1] > R_DAM and self.eta_ft > ETA_FT:
             return 0
         
-        elif self.FD.r < R_DAM:
+        elif self.FD.r[1] < R_DAM:
             self.fail = True
             return K_MINUS
         
@@ -441,7 +424,7 @@ class FighterEnv(gym.Env):
             else:
                 reward_2 = 0
             
-            reward_3 = -K_R3 * (self.a_y ** 2 + self.a_z ** 2)
+            reward_3 = -K_R3 * (self.fighter.a_y ** 2 + self.fighter.a_z ** 2)
 
 
             return reward_1 + reward_2 + reward_3
@@ -451,20 +434,3 @@ class FighterEnv(gym.Env):
 
             
 
-class FighterEnv_2(FighterEnv):
-
-    def start_simulate(self):
-        while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
-            
-            
-            self.FT.simulate(self.dt) 
-            self.FD.simulate(self.dt)
-
-            self.FT.proportional_navigation()
-            self.FD.proportional_navigation()
-
-            if self.Isprint:
-            
-                # 加入观察数据
-                self.calculate_eta()
-                self.update_plotdata()
