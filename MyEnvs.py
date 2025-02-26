@@ -291,13 +291,15 @@ class FighterEnv(gym.Env):
     def start_simulate(self):
 
         while not self.FD.check_detection():
-            
-            
-            self.FT.simulate(self.dt) 
-            self.FD.simulate(self.dt)
 
             self.FT.proportional_navigation()
-            self.FD.proportional_navigation()
+            self.FD.proportional_navigation()           
+            
+            self.FD.simulate(self.dt)
+            self.FT.simulate(self.dt) 
+            
+
+
             
             # 加入观察数据
             if self.Isprint:
@@ -383,10 +385,13 @@ class FighterEnv(gym.Env):
         self.FT.dtheta = self.a_y/self.fighter.velocity
         self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
 
-        self.FT.simulate(self.dt)
+        
+        self.FD.proportional_navigation()
 
         self.FD.simulate(self.dt)
-        self.FD.proportional_navigation()
+        self.FT.simulate(self.dt)
+
+        
 
         
 
@@ -472,13 +477,14 @@ class FighterEnv_2(FighterEnv):
 
     def start_simulate(self):
         while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
-            
-            
-            self.FT.simulate(self.dt) 
-            self.FD.simulate(self.dt)
 
             self.FT.proportional_navigation()
-            self.FD.proportional_navigation()
+            self.FD.proportional_navigation()          
+            
+            self.FD.simulate(self.dt)
+            self.FT.simulate(self.dt) 
+            
+
 
             if self.Isprint:
             
