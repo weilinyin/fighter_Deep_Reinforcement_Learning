@@ -1,7 +1,8 @@
-from MyEnvs import FighterEnv
+from MyEnvs import FighterEnv_2D
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.vec_env import DummyVecEnv
 from math import log
 import numpy as np
 
@@ -32,11 +33,11 @@ class CustomNetwork(nn.Module):
 
         # Policy network
         self.policy_net = nn.Sequential(
-            nn.Linear(feature_dim, 300), nn.ReLU() ,nn.Linear(300,300) , nn.Tanh() ,nn.Linear(300,last_layer_dim_pi) ,nn.Tanh()
+            nn.Linear(feature_dim, 160), nn.ReLU() ,nn.Linear(160,160) , nn.Tanh() ,nn.Linear(160,last_layer_dim_pi) ,nn.Tanh()
         )
         # Value network
         self.value_net = nn.Sequential(
-            nn.Linear(feature_dim, 300), nn.ReLU() , nn.Linear(300,300) , nn.ReLU() ,nn.Linear(300,last_layer_dim_vf) 
+            nn.Linear(feature_dim, 200), nn.ReLU() , nn.Linear(200,200) , nn.ReLU() ,nn.Linear(200,last_layer_dim_vf) 
         )
 
     def forward(self, features: th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
@@ -56,11 +57,11 @@ class CustomPolicy(ActorCriticPolicy):
         kwargs["ortho_init"] = False
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
-        self.log_std_init = 0  # 固定log_std的初始值
-        #self.log_std = nn.Parameter(
-            #th.ones(2) * self.log_std_init, 
-            #requires_grad=False
-        #)
+        self.log_std_init = log(0.5)  # 固定log_std的初始值
+        self.log_std = nn.Parameter(
+            th.ones(1) * self.log_std_init, 
+            requires_grad=False
+        )
         
         
         # 禁用自动构建的mlp_extractor，替换为自定义网络
@@ -106,20 +107,21 @@ class SmartStopCallback(BaseCallback):
 
 
 
-myenv = FighterEnv()
 
 
-myenv = Monitor(myenv)
-
-callback = SmartStopCallback(target_reward=90 , avg_window=30 , stop_threshold=200)
+myenv = DummyVecEnv([lambda: FighterEnv_2D() for _ in range(32)])
 
 
-model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
-              gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  )
 
-model_1.learn(total_timesteps=1e6, log_interval=4 ,callback = callback )
+callback = SmartStopCallback(target_reward=49 , avg_window=30 , stop_threshold=200)
 
-model_1.save("model_1")
+
+model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cuda',learning_rate = 0.002,
+              gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2  )
+
+model_1.learn(total_timesteps=4e6, log_interval=1 ,callback = callback , progress_bar= True )
+
+model_1.save("model_2")
 del model_1
 
 # 绘制训练曲线
@@ -144,7 +146,7 @@ plt.ylabel('Reward')
 plt.title(f'Training Progress (Stopped at Episode {len(callback.episode_rewards)})')
 plt.legend()
 plt.grid(True)
-plt.savefig('fig\PPO三维仿真\Training_Progress.png')
+plt.savefig('fig\PPO二维仿真\Training_Progress.png')
 plt.show()
 
 
