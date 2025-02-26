@@ -8,7 +8,7 @@ import copy
 R_DAM = 20
 R_FD = 18000
 R_FT = 30000
-R_CHANGE = 5000
+R_CHANGE = 10000
 ETA_FT = 10 * np.pi / 180
 DT = 1
 K_PLUS = 100
@@ -330,7 +330,7 @@ class FighterEnv(gym.Env):
         self.plotdata["eta"].append(self.eta_ft)
 
         self.t_array.append(self.t)
-        self.t += self.dt
+        
 
 
 
@@ -407,6 +407,7 @@ class FighterEnv(gym.Env):
         truncated = False
 
         if self.Isprint:
+            self.t += self.dt
             self.update_plotdata()
 
         
@@ -484,10 +485,11 @@ class FighterEnv_2(FighterEnv):
             self.FD.simulate(self.dt)
             self.FT.simulate(self.dt) 
             
+            
 
 
             if self.Isprint:
-            
+                self.t += self.dt
                 # 加入观察数据
                 self.calculate_eta()
                 self.update_plotdata()
