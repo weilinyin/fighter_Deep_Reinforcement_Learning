@@ -11,7 +11,14 @@ myenv = FighterEnv_2(True)
 
 
 
-
+plt.figure()
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "R_FD")
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["r"], label = "R_FT")
+plt.title('相对距离图')
+plt.xlabel('t/s')
+plt.ylabel('r/m')
+plt.legend()
+plt.savefig('fig\无突防三维仿真\相对距离图.png')
 
 
 
