@@ -25,11 +25,13 @@ print(rewards)
 
 
 plt.figure()
-plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "防御弹")
-plt.plot(myenv.t_array , myenv.plotdata["fighter"]["r"], label = "战斗机")
+plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "R_FD")
+plt.plot(myenv.t_array , myenv.plotdata["fighter"]["r"], label = "R_FT")
+plt.title('相对距离图')
 plt.xlabel('t/s')
 plt.ylabel('r/m')
 plt.legend()
+plt.savefig('fig\PPO三维仿真\相对距离图.png')
 
 # 创建一个新的figure
 fig = plt.figure()
@@ -51,14 +53,6 @@ ax.set_zlabel('z/m')
 ax.legend()
 
 
-
-
-plt.figure()
-plt.plot(myenv.plotdata["defender"]["x"] , myenv.plotdata["defender"]["y"],label = "防御弹")
-plt.plot(myenv.plotdata["fighter"]["x"] , myenv.plotdata["fighter"]["y"], label = "战斗机")
-plt.xlabel('x/m')
-plt.ylabel('y/m')
-plt.legend()
 
 
 
