@@ -109,14 +109,15 @@ class SmartStopCallback(BaseCallback):
 
 
 
-myenv = DummyVecEnv([lambda: FighterEnv_2D() for _ in range(32)])
+#myenv = DummyVecEnv([lambda: FighterEnv_2D() for _ in range(32)])
 
-
+myenv = FighterEnv_2D()
+myenv = Monitor(myenv)
 
 callback = SmartStopCallback(target_reward=49 , avg_window=30 , stop_threshold=200)
 
 
-model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cuda',learning_rate = 0.002,
+model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.002,
               gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2  )
 
 model_1.learn(total_timesteps=4e6, log_interval=1 ,callback = callback , progress_bar= True )

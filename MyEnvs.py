@@ -512,7 +512,7 @@ class FighterEnv_2D(FighterEnv):
             R_FT
         )
         self.defender = aircraft(
-            np.array([40000, 5000, -5000]).astype(np.float64),
+            np.array([40000,10000, -5000]).astype(np.float64),
             0,
             3.23,
             1000,
