@@ -574,19 +574,10 @@ class FighterEnv_2D(FighterEnv):
     def step(self,action):
 
 
-        
-        a_y = 0
+        self.a_y = 0
         a_z = action * 9.81 * 2
 
-        a = sqrt(a_y**2 + a_z**2)
-
-
-        if a > self.fighter.a_max:
-            self.a_y = a_y * self.fighter.a_max / a
-            self.a_z = a_z * self.fighter.a_max / a
-        else:
-            self.a_y = a_y
-            self.a_z = a_z
+        self.a_z = a_z
 
 
 
