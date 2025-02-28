@@ -117,7 +117,7 @@ callback = SmartStopCallback(target_reward=90 , avg_window=30 , stop_threshold=2
 model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
               gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  ,normalize_advantage= False,  )
 
-model_1.learn(total_timesteps=1e6, log_interval=4 ,callback = callback )
+model_1.learn(total_timesteps=4e6, log_interval=4 ,callback = callback  , progress_bar=True)
 
 model_1.save("model_1")
 del model_1
