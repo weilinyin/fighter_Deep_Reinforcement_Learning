@@ -575,7 +575,7 @@ class FighterEnv_2D(FighterEnv):
 
 
         self.a_y = 0
-        a_z = action * 9.81 * 2
+        a_z = action[0] * 9.81 * 2
 
         self.a_z = a_z
 

@@ -55,14 +55,7 @@ ax.legend()
 
 
 
-plt.figure()
-plt.plot(myenv.plotdata["defender"]["x"] , myenv.plotdata["defender"]["y"] ,label = "防御弹")
-plt.plot(myenv.plotdata["fighter"]["x"] , myenv.plotdata["fighter"]["y"] , label = "战斗机")
-plt.title('纵向轨迹图')
-plt.xlabel('x/m')
-plt.ylabel('y/m')
-plt.legend()
-plt.savefig('fig\PPO二维仿真\纵向轨迹图.png')
+
 
 plt.figure()
 plt.plot(myenv.plotdata["defender"]["x"] , myenv.plotdata["defender"]["z"],label = "防御弹")
@@ -73,14 +66,7 @@ plt.ylabel('z/m')
 plt.legend()
 plt.savefig('fig\PPO二维仿真\侧向轨迹图.png')
 
-plt.figure()
-plt.plot(myenv.t_array , myenv.plotdata["defender"]["theta"],label = "防御弹")
-plt.plot(myenv.t_array , myenv.plotdata["fighter"]["theta"], label = "战斗机")
-plt.title('弹道倾角图')
-plt.xlabel('t/s')
-plt.ylabel('theta/rad')
-plt.legend()
-plt.savefig('fig\PPO二维仿真\弹道倾角图.png')
+
 
 plt.figure()
 plt.plot(myenv.t_array , myenv.plotdata["defender"]["psi"],label = "防御弹")
@@ -91,14 +77,7 @@ plt.ylabel('psi/rad')
 plt.legend()
 plt.savefig('fig\PPO二维仿真\弹道偏角图.png')
 
-plt.figure()
-plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_y"],label = "防御弹")
-plt.plot(myenv.t_array , myenv.plotdata["fighter"]["a_y"], label = "战斗机")
-plt.title('纵向加速度图')
-plt.xlabel('t/s')
-plt.ylabel('a_y/(m s^-2)')
-plt.legend()
-plt.savefig('fig\PPO二维仿真\纵向加速度图.png')
+
 
 plt.figure()
 plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_z"],label = "防御弹")
