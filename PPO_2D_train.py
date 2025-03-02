@@ -111,7 +111,7 @@ class SmartStopCallback(BaseCallback):
 
 #myenv = DummyVecEnv([lambda: FighterEnv_2D() for _ in range(32)])
 
-myenv = FighterEnv_2D(dt = 0.1 ,Dt = 1)
+myenv = FighterEnv_2D(dt = 0.025 ,Dt = 0.025)
 myenv = Monitor(myenv)
 
 callback = SmartStopCallback(target_reward=60 , avg_window=30 , stop_threshold=200)
@@ -120,7 +120,7 @@ callback = SmartStopCallback(target_reward=60 , avg_window=30 , stop_threshold=2
 model = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.002,
               gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2  )
 
-model.learn(total_timesteps=2e6, log_interval=1 ,callback = callback , progress_bar= True )
+model.learn(total_timesteps=1e7, log_interval=1 ,callback = callback , progress_bar= True )
 
 model.save("model_2D")
 del model

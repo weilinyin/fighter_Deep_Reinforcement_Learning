@@ -10,8 +10,8 @@ R_FD = 18000
 R_FT = 30000
 R_CHANGE = 10000
 ETA_FT = 10 * np.pi / 180
-K_PLUS = 100
-K_MINUS = -100
+K_PLUS = 50
+K_MINUS = -50
 K_R1 = 0.1
 K_R2 = 1
 K_R3 = 2e-5
@@ -442,7 +442,10 @@ class FighterEnv(gym.Env):
         l_ft = self.FT.r * np.array([cos(self.FT.q_y) * cos(self.FT.q_z),
                                     -cos(self.FT.q_y) * sin(self.FT.q_z),
                                     sin(self.FT.q_y)])
-        self.eta_ft = acos((np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)))) # 战机速度与目标视线夹角
+        if np.linalg.norm(l_ft) == 0:
+            self.eta_ft = 0
+        else:
+            self.eta_ft = acos(np.clip(np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)) , -1.0, 1.0)) # 战机速度与目标视线夹角
 
     
     def calculate_reward(self):
