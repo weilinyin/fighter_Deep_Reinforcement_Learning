@@ -10,7 +10,6 @@ R_FD = 18000
 R_FT = 30000
 R_CHANGE = 10000
 ETA_FT = 10 * np.pi / 180
-DT = 1
 K_PLUS = 100
 K_MINUS = -100
 K_R1 = 0.1
@@ -97,6 +96,17 @@ class relative:
         eta_y = tanh(eta_y)
         eta_z = tanh(eta_z)
         return r_bar , eta_y , eta_z
+
+    def state_2(self , type):
+        if type == "defender":
+            r_bar = self.r / self.chaser.R
+        elif type == "fighter":
+            r_bar = (self.r - self.chaser.R) / (self.r_0 - self.chaser.R)
+
+        eta_z = tanh(self.q_z - self.psi)
+
+        return r_bar , eta_z
+
 
 
 
@@ -201,7 +211,7 @@ class relative:
 # 1. 环境模块
 class FighterEnv(gym.Env):
 
-    def __init__(self,Isprint = False):
+    def __init__(self,Isprint = False , dt = 0.1 ,Dt = 1):
         super().__init__()
 
         self.Isprint = Isprint
@@ -248,7 +258,9 @@ class FighterEnv(gym.Env):
 
 
         # 规定时间步长
-        self.dt = DT
+        self.dt_0 = dt
+        self.Dt = Dt
+        self.dt = Dt
 
         # 制图数据
         self.plotdata = {"fighter":{} , "defender":{}, "rewards":[] , "eta":[]} 
@@ -362,9 +374,9 @@ class FighterEnv(gym.Env):
 
         # 防御弹
         if self.FD.r <= R_CHANGE:
-            self.dt = 0.1
+            self.dt = self.dt_0
         else:
-            self.dt = DT
+            self.dt = self.Dt
 
         
         a_y = action[0] * 9.81 * 2
@@ -470,11 +482,147 @@ class FighterEnv(gym.Env):
             return reward_1 + reward_2 + reward_3
 
 
+class FighterEnv_2D(FighterEnv):
+    def __init__(self, Isprint = False ,dt = 0.1 ,Dt = 1):
+        super(FighterEnv, self).__init__()
 
+        self.Isprint = Isprint
+
+        
+        self.observation_space = gym.spaces.Box(low = np.array([0  , -1 , -np.inf , -1]) ,
+                                                high = np.array([1.1  , 1 , 2  , 1]) ,
+                                                shape= (4,),
+                                                dtype = np.float64)
+        
+        self.action_space = gym.spaces.Box(low = -1 ,
+                                           high = 1 ,
+                                           shape = (1,),
+                                           dtype = np.float64) 
+        self.fighter = aircraft(
+            np.array([0, 10000, 0]).astype(np.float64),
+            0,
+            0,
+            900,
+            2*9.81,
+            R_FT
+        )
+        self.defender = aircraft(
+            np.array([40000,10000, -5000]).astype(np.float64),
+            0,
+            3.23,
+            1000,
+            5*9.81,
+            R_FD
+        )
+        self.target = aircraft(
+            np.array([50000,10000,0]).astype(np.float64),
+            0,
+            0,
+            0,
+            0,
+            0
+        )
+
+
+        # 初始化相对量
+        self.FD = relative(self.defender, self.fighter)
+        self.FT = relative(self.fighter, self.target)
+
+
+        # 规定时间步长
+        self.dt_0 = dt
+        self.Dt = Dt
+        self.dt = Dt
+
+        # 制图数据
+        self.plotdata = {"fighter":{} , "defender":{}, "rewards":[] , "eta":[]} 
+
+        self.plotdata["fighter"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]}
+        self.plotdata["defender"] = {"x":[], "y":[] , "z":[], "theta":[], "psi":[], "a_y":[], "a_z":[] , "r":[]} 
+
+        # 计时器
+        self.t = 0.0
+        self.t_array = []
+
+        # 未开始突防
+        self.start_simulate()
+
+        self.t_0=self.t
+
+
+
+        # 初始化状态
+        r_1  , q_z1 = self.FD.state_2("defender")
+        r_2  , q_z2 = self.FT.state_2("fighter")
+
+
+        self.state = np.array([r_1  , q_z1 , r_2  , q_z2])
+        # 存档
+        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state)}
+
+        # 初始化成功突防标志
+        self.success = False
+
+
+
+        # 初始化失败标志
+        self.fail = False
+
+    def step(self,action):
+
+
+        if self.FD.r <= R_CHANGE:
+            self.dt = self.dt_0
+        else:
+            self.dt = self.Dt
+
+
+        self.a_y = 0
+        a_z = action[0] * 9.81 * 2
+
+        self.a_z = a_z
+
+
+
+        self.FT.dtheta = self.a_y/self.fighter.velocity
+        self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
+
+        
+        self.FD.proportional_navigation()
+
+        self.FD.simulate(self.dt)
+        self.FT.simulate(self.dt)
+
+        
+
+        
+
+        r_1  , q_z1 = self.FD.state_2("defender")
+        r_2  , q_z2 = self.FT.state_2("fighter")
+
+        observation = np.array([r_1  , q_z1 , r_2  , q_z2])
+
+        reward = self.calculate_reward()
+
+        terminated = self.success or self.fail
+
+        truncated = False
+
+        if self.Isprint:
+            self.update_plotdata()
+
+        
+
+
+        
+
+
+
+        return observation, reward, terminated, truncated , {}
 
             
 
-class FighterEnv_2(FighterEnv):
+class FighterEnv_2(FighterEnv_2D):
 
     def start_simulate(self):
         while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真

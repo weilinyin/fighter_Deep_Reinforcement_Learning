@@ -1,152 +1,74 @@
-from MyEnvs import FighterEnv
-from stable_baselines3 import PPO
-from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import BaseCallback
-from math import log
-import numpy as np
-
-
-import matplotlib.pyplot as plt
-
-import torch as th
+from stable_baselines3.ppo import PPO
 import torch.nn as nn
-from stable_baselines3.common.policies import ActorCriticPolicy
-from typing import Tuple
+import torch as th
 
 
 
-class CustomNetwork(nn.Module):
+class expert_generator:
+    def __init__(self):
+        
 
-    def __init__(
-        self,
-        feature_dim: int,
-        last_layer_dim_pi: int = 64,
-        last_layer_dim_vf: int = 64,
-    ):
+
+class GAILDiscriminator(nn.Module):
+    """状态-动作对判别器"""
+    def __init__(self, observation_space, action_space):
         super().__init__()
-
-        # IMPORTANT:
-        # Save output dimensions, used to create the distributions
-        self.latent_dim_pi = last_layer_dim_pi
-        self.latent_dim_vf = last_layer_dim_vf
-
-        # Policy network
-        self.policy_net = nn.Sequential(
-            nn.Linear(feature_dim, 300), nn.ReLU() ,nn.Linear(300,300) , nn.Tanh() ,nn.Linear(300,last_layer_dim_pi) ,nn.Tanh()
+        self.net = nn.Sequential(
+            nn.Linear(observation_space.shape[0] + action_space.shape[0], 64),
+            nn.Tanh(),
+            nn.Linear(64, 32),
+            nn.Tanh(),
+            nn.Linear(32, 1),
+            nn.Sigmoid()
         )
-        # Value network
-        self.value_net = nn.Sequential(
-            nn.Linear(feature_dim, 300), nn.ReLU() , nn.Linear(300,300) , nn.ReLU() ,nn.Linear(300,last_layer_dim_vf) 
-        )
-
-    def forward(self, features: th.Tensor) -> Tuple[th.Tensor, th.Tensor]:
-        return self.forward_actor(features), self.forward_critic(features)
-
-    def forward_actor(self, features: th.Tensor) -> th.Tensor:
-        return self.policy_net(features)
-
-    def forward_critic(self, features: th.Tensor) -> th.Tensor:
-        return self.value_net(features)
     
+    def forward(self, states, actions):
+        return self.net(th.cat([states, actions], dim=1))
 
-
-
-class CustomPolicy(ActorCriticPolicy):
-    def __init__(self, observation_space, action_space, lr_schedule, **kwargs):
-        kwargs["ortho_init"] = False
-        super().__init__(observation_space, action_space, lr_schedule, **kwargs)
-
-        self.log_std_init = 0  # 固定log_std的初始值
-        #self.log_std = nn.Parameter(
-            #th.ones(2) * self.log_std_init, 
-            #requires_grad=False
-        #)
+class GAIL_PPO(PPO):
+    def __init__(self, expert_generator, **kwargs):
+        super().__init__(**kwargs)
+        # 初始化判别器
+        self.discriminator = GAILDiscriminator(
+            self.observation_space, 
+            self.action_space
+        )
+        self.disc_optimizer = th.optim.Adam(
+            self.discriminator.parameters(), 
+            lr=1e-3
+        )
+        self.expert_generator = expert_generator
         
+    def _calc_gail_reward(self, obs, actions):
+        """计算对抗奖励"""
+        with th.no_grad():
+            expert_prob = self.discriminator(obs, actions)
+            return -th.log(1 - expert_prob + 1e-8)
+    
+    def train(self) -> None:
+        # 收集智能体数据
+        agent_obs, agent_acts, _ = self.collect_rollouts()
         
-        # 禁用自动构建的mlp_extractor，替换为自定义网络
-    def _build_mlp_extractor(self) -> None:
-        self.mlp_extractor = CustomNetwork(self.features_dim,2,300)
-
-
-
-class SmartStopCallback(BaseCallback):
-    def __init__(self, 
-                 avg_window=30,         # 平均奖励计算窗口
-                 stop_threshold=200,     # 奖励达标连续次数
-                 target_reward=300,     # 奖励阈值
-                 verbose=0):
-        super().__init__(verbose)
-        self.avg_window = avg_window
-        self.stop_threshold = stop_threshold
-        self.target_reward = target_reward
-        self.episode_rewards = []        # 原始奖励记录
-        self.mean_rewards = []           # 滑动平均奖励
-        self.consecutive_count = 0       # 连续达标计数器
-
-    def _on_step(self) -> bool:
-        # 收集所有环境的episode奖励
-        for info in self.locals.get('infos', []):
-            if 'episode' in info:
-                self.episode_rewards.append(info['episode']['r'])
-                
-                # 计算滑动平均
-                if len(self.episode_rewards) >= self.avg_window:
-                    avg_reward = np.mean(self.episode_rewards[-self.avg_window:])
-                    self.mean_rewards.append(avg_reward)
-                    
-                    # 检查停止条件
-                    if avg_reward >= self.target_reward:
-                        self.consecutive_count += 1
-                        if self.consecutive_count >= self.stop_threshold:
-                            self.model.stop_training = True  # 触发停止训练
-                            return False
-                    else:
-                        self.consecutive_count = 0  # 重置计数器
-        return True
-
-
-
-myenv = FighterEnv()
-
-
-myenv = Monitor(myenv)
-
-callback = SmartStopCallback(target_reward=90 , avg_window=30 , stop_threshold=200)
-
-
-model_1 = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.005,
-              gae_lambda= 0.98 , gamma = 0.96 , n_steps = 2048 , batch_size = 256 , n_epochs = 4 ,clip_range = 0.2  )
-
-model_1.learn(total_timesteps=1e6, log_interval=4 ,callback = callback )
-
-model_1.save("model_1")
-del model_1
-
-# 绘制训练曲线
-plt.figure(figsize=(12, 6))
-
-# 绘制原始奖励（透明显示趋势）
-plt.plot(callback.episode_rewards, alpha=0.2, label='Raw Reward')
-
-# 绘制滑动平均奖励
-if len(callback.mean_rewards) > 0:
-    x_axis = np.arange(len(callback.mean_rewards)) + callback.avg_window
-    plt.plot(x_axis, callback.mean_rewards, color='red', label='30-Episode Average')
-
-# 标注停止训练的位置
-if callback.consecutive_count >= callback.stop_threshold:
-    stop_episode = len(callback.episode_rewards) - callback.stop_threshold
-    plt.axvline(x=stop_episode, color='green', linestyle='--', 
-               label='Training Stopped')
-
-plt.xlabel('Episode')
-plt.ylabel('Reward')
-plt.title(f'Training Progress (Stopped at Episode {len(callback.episode_rewards)})')
-plt.legend()
-plt.grid(True)
-plt.savefig('fig\PPO三维仿真\Training_Progress.png')
-plt.show()
-
-
-
-
+        # 获取专家数据（实时生成）
+        expert_obs, expert_acts = self.expert_generator.sample()
+        
+        # 训练判别器
+        for _ in range(5):  # 对抗训练次数
+            # 计算判别损失
+            agent_probs = self.discriminator(agent_obs, agent_acts)
+            expert_probs = self.discriminator(expert_obs, expert_acts)
+            loss = -th.log(expert_probs).mean() - th.log(1 - agent_probs).mean()
+            
+            # 更新判别器
+            self.disc_optimizer.zero_grad()
+            loss.backward()
+            self.disc_optimizer.step()
+        
+        # 用对抗奖励替代原始奖励
+        self.rollout_buffer.rewards = self._calc_gail_reward(
+            th.as_tensor(self.rollout_buffer.observations),
+            th.as_tensor(self.rollout_buffer.actions)
+        )
+        
+        # 执行PPO原始训练流程[2,5](@ref)
+        super().train()
