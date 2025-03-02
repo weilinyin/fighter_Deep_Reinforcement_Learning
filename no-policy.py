@@ -1,11 +1,13 @@
-from MyEnvs import FighterEnv_2
+from MyEnvs import FighterEnv_nopolicy
 import numpy as np
 import matplotlib.pyplot as plt
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
 plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显示为方块的问题
 
-myenv = FighterEnv_2(True)
+myenv = FighterEnv_nopolicy(True , dt=0.01 ,Dt = 0.01)
+
+
 
 
 

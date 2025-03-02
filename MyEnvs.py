@@ -625,7 +625,7 @@ class FighterEnv_2D(FighterEnv):
 
             
 
-class FighterEnv_2(FighterEnv_2D):
+class FighterEnv_nopolicy(FighterEnv):
 
     def start_simulate(self):
         while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
