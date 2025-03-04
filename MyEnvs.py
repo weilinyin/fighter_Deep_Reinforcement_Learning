@@ -134,6 +134,8 @@ class relative:
             self.dtheta = self.a_y / self.chaser.velocity
             self.dpsi = -self.a_z / (self.chaser.velocity * cos(self.theta))
 
+        return self.a_y , self.a_z
+
 
 
 
@@ -175,7 +177,7 @@ class relative:
         self.q_y += self.dq_y * dt
         self.q_z += self.dq_z * dt
 
-        self.calculate_a()
+        _ , _ = self.calculate_a()
 
         self.theta += self.dtheta * dt 
         self.psi += self.dpsi * dt
@@ -187,6 +189,7 @@ class relative:
         self.chaser.position[2] = self.target.position[2] + self.r * cos(self.q_y) * sin(self.q_z)
         self.chaser.theta = self.theta
         self.chaser.psi = self.psi
+
 
 
 
