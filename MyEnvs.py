@@ -357,9 +357,10 @@ class FighterEnv(gym.Env):
             self.fighter = copy.deepcopy(self.saves["figher"])
             self.defender = copy.deepcopy(self.saves["defender"])
             self.state = copy.deepcopy(self.saves["state"])
-            self.t = self.t_0
+            
             self.FD = relative(self.defender, self.fighter)
             self.FT = relative(self.fighter, self.target)
+        self.t = self.t_0
 
         self.success =False
         self.fail=False

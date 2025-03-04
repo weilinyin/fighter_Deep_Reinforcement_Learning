@@ -8,6 +8,7 @@ import numpy as np
 
 
 
+
 class expert_generator:
     def __init__(self , FD:relative , FT:relative , t_0):
 
@@ -17,30 +18,33 @@ class expert_generator:
         self.c_0 = self.FD.dq_z
 
 
-    def generate(self ,t):
-        t_f = t + t_go - 1
-        c_f = 1
+    def generate(self ,t , c_f):
+        t_go =  - self.FD.r / self.FD.dr
+        t_f = t + t_go - 0.7
+        
         if t < t_f:
 
-            K_FD = self.FD.dr / self.FD.r
+            k_FD = self.FD.dr / self.FD.r
             r_FD = self.FD.r
             q_FD = self.FD.q_z
-            psi_VF = self.FD.chaser.psi
+            psi_VF = self.FD.target.psi
 
-            t_go =  - self.FD.r / self.FD.dr
             
             
+            
 
-            a_E1 = 2 * K_FD * r_FD * exp(K_FD *(t_f - t)) / (1-exp(2*K_FD *(t_f - self.t_0)))
-            a_E2 = (self.c_0 * exp(K_FD * (t_f - self.t_0)) - c_f) / cos(q_FD - psi_VF)
+            a_E1 = 2 * k_FD * r_FD * exp(k_FD *(t_f - t)) / (1-exp(2*k_FD *(t_f - self.t_0)))
+            a_E2 = (self.c_0 * exp(k_FD * (t_f - self.t_0)) - c_f) / cos(q_FD - psi_VF)
 
-            return a_E1 * a_E2
+            a_E = a_E1 * a_E2 / (9.81*2)
+
+            return a_E
         else:
             
             self.FT.proportional_navigation()
             _ , a_E = self.FT.calculate_a()
 
-            return a_E
+            return a_E /(9.81*2)
 
 
 
