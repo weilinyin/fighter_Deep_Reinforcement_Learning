@@ -111,7 +111,7 @@ class SmartStopCallback(BaseCallback):
 
 #myenv = DummyVecEnv([lambda: FighterEnv_2D() for _ in range(32)])
 
-myenv = FighterEnv_2D(dt = 0.025 ,Dt = 0.025)
+myenv = FighterEnv_2D(dt = 0.01 ,Dt = 0.01)
 myenv = Monitor(myenv)
 
 callback = SmartStopCallback(target_reward=60 , avg_window=30 , stop_threshold=200)
