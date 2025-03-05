@@ -9,6 +9,8 @@ myenv = FighterEnv_nopolicy_2D(True,Dt = 0.01)
 
 print(myenv.t)
 print(myenv.FD.r)
+r = np.array(myenv.plotdata["defender"]["r"])
+print(min(r))
 
 plt.figure()
 plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "防御弹")
