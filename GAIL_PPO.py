@@ -10,19 +10,19 @@ import numpy as np
 
 
 class expert_generator:
-    def __init__(self , FD:relative , FT:relative , t_0):
+    def __init__(self , FD:relative , FT:relative , t_0 ,c_f):
 
         self.t_0 = t_0
         self.FD = FD
         self.FT = FT
         self.c_0 = self.FD.dq_z
+        self.t_f = t_0 - FD.r / FD.dr -1
+        self.c_f = c_f
 
 
-    def generate(self ,t , c_f):
-        t_go =  - self.FD.r / self.FD.dr
-        t_f = t + t_go - 0.7
+    def generate(self ,t):
         
-        if t < t_f:
+        if t < self.t_f:
 
             k_FD = self.FD.dr / self.FD.r
             r_FD = self.FD.r
@@ -33,8 +33,8 @@ class expert_generator:
             
             
 
-            a_E1 = 2 * k_FD * r_FD * exp(k_FD *(t_f - t)) / (1-exp(2*k_FD *(t_f - self.t_0)))
-            a_E2 = (self.c_0 * exp(k_FD * (t_f - self.t_0)) - c_f) / cos(q_FD - psi_VF)
+            a_E1 = 2 * k_FD * r_FD * exp(k_FD *(self.t_f - t)) / (1-exp(2*k_FD *(self.t_f - self.t_0)))
+            a_E2 = (self.c_0 * exp(k_FD * (self.t_f - self.t_0)) - self.c_f) / cos(q_FD - psi_VF)
 
             a_E = a_E1 * a_E2 / (9.81*2)
 

@@ -8,23 +8,25 @@ plt.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
 plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显示为方块的问题
 
 
-myenv = FighterEnv_2D(True,Dt = 0.01 ,dt = 0.01)
+myenv = FighterEnv_2D(False,Dt = 0.01 ,dt = 0.01)
 
 
 
 target_c_f = 0
-c_f = 1
-while c_f > -1:
+c_f = 3
+while c_f > -3:
     obs , _ = myenv.reset()
-    expert = expert_generator(myenv.FD , myenv.FT , myenv.t_0)
+    expert = expert_generator(myenv.FD , myenv.FT , myenv.t_0 , c_f )
     while not (myenv.success or myenv.fail):
-        a_E = expert.generate(myenv.t , c_f)
+        a_E = expert.generate(myenv.t)
         action = np.array([a_E])
         obs, rewards, dones, _ , _ = myenv.step(action)
-    if rewards >49:
+    print(myenv.FD.dq_z)
+    if rewards >30:
         target_c_f = c_f
+        print(target_c_f)
         break
-    c_f -= 0.00001
+    c_f -= 0.1
 
 
 print(target_c_f)

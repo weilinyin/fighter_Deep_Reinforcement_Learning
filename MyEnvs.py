@@ -169,7 +169,7 @@ class relative:
                         self.chaser.velocity * (sin(self.theta) * cos(self.q_y) -
                                             cos(self.theta) * sin(self.q_y) * cos(self.psi - self.q_z)))/self.r
         
-        self.dq_z = (self.target.velocity * cos(self.target.theta) * sin(self.psi - self.q_z) -
+        self.dq_z = (self.target.velocity * cos(self.target.theta) * sin(self.target.psi - self.q_z) -
                         self.chaser.velocity * cos(self.theta) * sin(self.psi - self.q_z))/(self.r * cos(self.q_y))
         
 
@@ -289,7 +289,8 @@ class FighterEnv(gym.Env):
 
         self.state = np.array([r_1 , q_y1 , q_z1 , r_2 , q_y2 , q_z2])
         # 存档
-        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state)}
+        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender)
+                      ,"state":copy.deepcopy(self.state),"FD":copy.deepcopy(self.FD),"FT":copy.deepcopy(self.FT)}
 
         # 初始化成功突防标志
         self.success = False
@@ -353,13 +354,13 @@ class FighterEnv(gym.Env):
     def reset(self , seed=None, options=None):
         # 重置环境，返回初始状态
         # 初始化战斗机、防御弹和目标参数（速度、位置、制导律等）
-        if not self.Isprint:
-            self.fighter = copy.deepcopy(self.saves["figher"])
-            self.defender = copy.deepcopy(self.saves["defender"])
-            self.state = copy.deepcopy(self.saves["state"])
+        self.fighter = copy.deepcopy(self.saves["figher"])
+        self.defender = copy.deepcopy(self.saves["defender"])
+        self.state = copy.deepcopy(self.saves["state"])
+        
             
-            self.FD = relative(self.defender, self.fighter)
-            self.FT = relative(self.fighter, self.target)
+        self.FD = copy.deepcopy(self.saves["FD"])
+        self.FT = copy.deepcopy(self.saves["FT"])
         self.t = self.t_0
 
         self.success =False
@@ -565,7 +566,8 @@ class FighterEnv_2D(FighterEnv):
 
         self.state = np.array([r_1  , q_z1 , r_2  , q_z2])
         # 存档
-        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender),"state":copy.deepcopy(self.state)}
+        self.saves = {"figher":copy.deepcopy(self.fighter),"defender":copy.deepcopy(self.defender)
+                      ,"state":copy.deepcopy(self.state),"FD":copy.deepcopy(self.FD),"FT":copy.deepcopy(self.FT)}
 
         # 初始化成功突防标志
         self.success = False
@@ -596,11 +598,12 @@ class FighterEnv_2D(FighterEnv):
         self.FT.dtheta = self.a_y/self.fighter.velocity
         self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
 
+        self.FT.simulate(self.dt)
         
         self.FD.proportional_navigation()
 
         self.FD.simulate(self.dt)
-        self.FT.simulate(self.dt)
+        
 
         
 
@@ -640,13 +643,14 @@ class FighterEnv_nopolicy(FighterEnv):
             self.FD.proportional_navigation()          
             
             self.FD.simulate(self.dt)
-            self.FT.simulate(self.dt) 
+            self.FT.simulate(self.dt)
+             
             
             
-
+            self.t += self.dt
 
             if self.Isprint:
-                self.t += self.dt
+                
                 # 加入观察数据
                 self.calculate_eta()
                 self.update_plotdata()
