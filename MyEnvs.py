@@ -73,10 +73,13 @@ class relative:
 
     def calculate_relative_state(self):
         # 计算相对状态量
-        self.r = np.linalg.norm(self.target.position - self.chaser.position)
-        self.r_0 = self.r
-        self.q_y = arcsin((self.target.position[1] - self.chaser.position[1]) / self.r)
-        self.q_z = arccos((self.target.position[0] - self.chaser.position[0]) / (np.linalg.norm(np.array([self.target.position[0] - self.chaser.position[0] , self.target.position[2] - self.chaser.position[2]])))) 
+        r = self.target.position - self.chaser.position
+        self.r = np.linalg.norm(r)
+        self.q_y = arcsin(r[1] / self.r)
+        self.q_z = arccos(r[0] / (np.linalg.norm(np.array([r[0] , r[2]]))))
+        if r[2] > 0:
+            self.q_z = -self.q_z
+         
 
 
 
@@ -663,11 +666,15 @@ class FighterEnv_nopolicy_2D(FighterEnv_2D):
         while self.FD.r > R_DAM and self.FT.r > 5000 and self.t < 30: # 不进行突防仿真
             
 
-            self.FT.proportional_navigation()
-            self.FD.proportional_navigation()          
+                     
             
-            self.FD.simulate(self.dt)
+            
             self.FT.simulate(self.dt)
+
+            self.FT.proportional_navigation()
+
+            self.FD.simulate(self.dt)
+            self.FD.proportional_navigation() 
              
             
             
