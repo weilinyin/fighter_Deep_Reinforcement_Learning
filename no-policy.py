@@ -91,7 +91,7 @@ plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_z"],label = "防御弹")
 plt.plot(myenv.t_array , myenv.plotdata["fighter"]["a_z"], label = "战斗机")
 plt.title('侧向加速度图')
 plt.xlabel('t/s')
-plt.ylabel('a_y/(m s^-2)')
+plt.ylabel('a_z/(m s^-2)')
 plt.legend()
 plt.savefig('fig\无突防三维仿真\侧向加速度图.png')
 

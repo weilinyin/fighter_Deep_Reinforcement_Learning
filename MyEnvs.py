@@ -654,3 +654,24 @@ class FighterEnv_nopolicy(FighterEnv):
                 # 加入观察数据
                 self.calculate_eta()
                 self.update_plotdata()
+
+class FighterEnv_nopolicy_2D(FighterEnv_2D):
+
+    def start_simulate(self):
+        while self.FD.r > R_DAM and self.FT.r > 0: # 不进行突防仿真
+
+            self.FT.proportional_navigation()
+            self.FD.proportional_navigation()          
+            
+            self.FD.simulate(self.dt)
+            self.FT.simulate(self.dt)
+             
+            
+            
+            self.t += self.dt
+
+            if self.Isprint:
+                
+                # 加入观察数据
+                self.calculate_eta()
+                self.update_plotdata()

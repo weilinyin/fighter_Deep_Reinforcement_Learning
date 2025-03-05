@@ -1,13 +1,14 @@
-from MyEnvs import FighterEnv_nopolicy
+from MyEnvs import FighterEnv_nopolicy_2D
 import numpy as np
 import matplotlib.pyplot as plt
 
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
 plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显示为方块的问题
 
-myenv = FighterEnv_nopolicy(True,Dt = 0.01)
+myenv = FighterEnv_nopolicy_2D(True,Dt = 0.01)
 
-
+print(myenv.t)
+print(myenv.FD.r)
 
 plt.figure()
 plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "防御弹")
@@ -49,7 +50,7 @@ plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_z"],label = "防御弹")
 plt.plot(myenv.t_array , myenv.plotdata["fighter"]["a_z"], label = "战斗机")
 plt.title('侧向加速度图')
 plt.xlabel('t/s')
-plt.ylabel('a_y/(m s^-2)')
+plt.ylabel('a_z/(m s^-2)')
 plt.legend()
 plt.savefig('fig\无突防二维仿真\侧向加速度图.png')
 
