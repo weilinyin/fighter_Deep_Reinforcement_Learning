@@ -1,5 +1,5 @@
 import numpy as np
-from math import sin , cos , tan ,acos ,asin ,atan ,sqrt , tanh
+from numpy import sin , cos, tan , arccos ,arcsin ,arctan ,sqrt ,tanh
 import gymnasium as gym
 import copy
 
@@ -37,22 +37,22 @@ class relative:
 
         self.r = np.linalg.norm(target.position - chaser.position)
         self.r_0 = self.r
-        self.q_y = asin((target.position[1] - chaser.position[1]) / self.r)
-        self.q_z = acos((target.position[0] - chaser.position[0]) / (np.linalg.norm(np.array([target.position[0] - chaser.position[0] , target.position[2] - chaser.position[2]])))) 
-        self.dq_y = 0
-        self.dq_z = 0
+        self.q_y = arcsin((target.position[1] - chaser.position[1]) / self.r)
+        self.q_z = arccos((target.position[0] - chaser.position[0]) / (np.linalg.norm(np.array([target.position[0] - chaser.position[0] , target.position[2] - chaser.position[2]])))) 
+        self.dq_y = 0.0
+        self.dq_z = 0.0
 
 
-        self.dr = 0
-        self.dq_y = 0
-        self.dq_z = 0
+        self.dr = 0.0
+        self.dq_y = 0.0
+        self.dq_z = 0.0
 
         self.chaser = chaser
         self.target = target
         self.theta = self.chaser.theta
         self.psi = self.chaser.psi
-        self.dtheta = 0
-        self.dpsi = 0
+        self.dtheta = 0.0
+        self.dpsi = 0.0
 
     def check_detection(self):
         # 检测战机是否探测到导弹
@@ -77,8 +77,8 @@ class relative:
                           cos(self.target.theta) * sin(q_y) -
                           sin(self.target.theta) * cos(self.target.psi) * cos(q_y) * sin(q_z))
             eta_y = np.clip(eta_y, -1, 1)
-            eta_y = asin(eta_y)
-            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
+            eta_y = arcsin(eta_y)
+            eta_z = arctan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
                           (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
                            sin(self.theta) * sin(q_y) +
                            cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
@@ -89,7 +89,7 @@ class relative:
                           cos(self.theta) * sin(q_y) -
                           sin(self.theta) * cos(self.psi) * cos(q_y) * sin(q_z))
             eta_y = np.clip(eta_y, -1, 1)
-            eta_z = atan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
+            eta_z = arctan((cos(q_y) * sin(q_z) * cos(self.psi) -cos(q_y) * cos(q_z) * sin(self.psi))/
                           (cos(q_y) * cos(q_z) * cos(self.theta) * cos(self.psi) +
                            sin(self.theta) * sin(q_y) +
                            cos(q_y) * sin(q_z) * cos(self.theta) * sin(self.psi)))
@@ -450,7 +450,7 @@ class FighterEnv(gym.Env):
         if np.linalg.norm(l_ft) == 0:
             self.eta_ft = 0
         else:
-            self.eta_ft = acos(np.clip(np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)) , -1.0, 1.0)) # 战机速度与目标视线夹角
+            self.eta_ft = arccos(np.clip(np.dot(v_f, l_ft) / (np.linalg.norm(v_f) * np.linalg.norm(l_ft)) , -1.0, 1.0)) # 战机速度与目标视线夹角
 
     
     def calculate_reward(self):

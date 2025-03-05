@@ -22,7 +22,24 @@ plt.ylabel('r/m')
 plt.legend()
 plt.savefig('fig\无突防三维仿真\相对距离图.png')
 
+# 创建一个新的figure
+fig = plt.figure()
 
+# 添加一个3D子图
+ax = fig.add_subplot(111, projection='3d')
+
+
+# 绘制线图
+ax.plot(myenv.plotdata["defender"]["x"], myenv.plotdata["defender"]["y"], myenv.plotdata["defender"]["z"], label='防御弹')
+ax.plot(myenv.plotdata["fighter"]["x"], myenv.plotdata["fighter"]["y"], myenv.plotdata["fighter"]["z"], label='战斗机')
+
+
+
+# 设置标签
+ax.set_xlabel('x/m')
+ax.set_ylabel('y/m')
+ax.set_zlabel('z/m')
+ax.legend()
 
 plt.figure()
 plt.plot(myenv.plotdata["defender"]["x"] , myenv.plotdata["defender"]["y"] ,label = "防御弹")
