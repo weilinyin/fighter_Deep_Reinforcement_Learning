@@ -10,8 +10,8 @@ R_FD = 18000
 R_FT = 30000
 R_CHANGE = 10000
 ETA_FT = 10 * np.pi / 180
-K_PLUS = 50
-K_MINUS = -50
+K_PLUS = 100
+K_MINUS = -100
 K_R1 = 0.1
 K_R2 = 1
 K_R3 = 2e-5
@@ -401,6 +401,7 @@ class FighterEnv(gym.Env):
         else:
             self.dt = self.Dt
 
+        self.t += self.dt
         
         a_y = action[0] * 9.81 * 2
         a_z = action[1] * 9.81 * 2
@@ -423,8 +424,10 @@ class FighterEnv(gym.Env):
         
         self.FD.proportional_navigation()
 
-        self.FD.simulate(self.dt)
+
         self.FT.simulate(self.dt)
+        self.FD.simulate(self.dt)
+        
 
         
 
@@ -441,7 +444,7 @@ class FighterEnv(gym.Env):
 
         truncated = False
 
-        self.t += self.dt
+        
 
         if self.Isprint:
             
