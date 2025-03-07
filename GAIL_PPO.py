@@ -16,7 +16,7 @@ class expert_generator:
         self.FD = FD
         self.FT = FT
         self.c_0 = self.FD.dq_z
-        self.t_f = t_0 - FD.r / FD.dr -1
+        self.t_f = t_0 - FD.r / FD.dr -0.5
         self.c_f = c_f
 
 

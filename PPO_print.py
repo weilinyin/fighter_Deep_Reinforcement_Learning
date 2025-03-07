@@ -14,7 +14,7 @@ model = PPO.load("model_1", env=myenv,device='cpu')
 obs , _ = myenv.reset()
 while not (myenv.success or myenv.fail):
     action, _states = model.predict(obs)
-    obs, rewards, dones, _ , _ = myenv.step(action)
+    obs, rewards, dones, _ , _ = myenv.step(action, deterministic=True)
 
 
 

@@ -58,8 +58,6 @@ class relative:
         self.dq_y = 0.0
         self.dq_z = 0.0
         self.dr = 0.0
-        self.dq_y = 0.0
-        self.dq_z = 0.0
         self.dtheta = 0.0
         self.dpsi = 0.0
 
@@ -319,6 +317,7 @@ class FighterEnv(gym.Env):
             self.FT.simulate(self.dt) 
             
 
+            self.t += self.dt
 
             
             # 加入观察数据
@@ -358,13 +357,28 @@ class FighterEnv(gym.Env):
     def reset(self , seed=None, options=None):
         # 重置环境，返回初始状态
         # 初始化战斗机、防御弹和目标参数（速度、位置、制导律等）
+        
         self.fighter = copy.deepcopy(self.saves["figher"])
         self.defender = copy.deepcopy(self.saves["defender"])
         self.state = copy.deepcopy(self.saves["state"])
         
             
-        self.FD = copy.deepcopy(self.saves["FD"])
-        self.FT = copy.deepcopy(self.saves["FT"])
+        self.FD = relative(self.defender, self.fighter)
+        self.FT = relative(self.fighter, self.target)
+
+        self.FD.dr = self.saves["FD"].dr
+        self.FD.dq_y = self.saves["FD"].dq_y
+        self.FD.dq_z = self.saves["FD"].dq_z
+        self.FD.dtheta = self.saves["FD"].dtheta
+        self.FD.dpsi = self.saves["FD"].dpsi
+
+        self.FT.dr = self.saves["FT"].dr
+        self.FT.dq_y = self.saves["FT"].dq_y
+        self.FT.dq_z = self.saves["FT"].dq_z
+        self.FT.dtheta = self.saves["FT"].dtheta
+        self.FT.dpsi = self.saves["FT"].dpsi
+
+
         self.t = self.t_0
 
         self.success =False
@@ -427,8 +441,10 @@ class FighterEnv(gym.Env):
 
         truncated = False
 
+        self.t += self.dt
+
         if self.Isprint:
-            self.t += self.dt
+            
             self.update_plotdata()
 
         
@@ -602,10 +618,11 @@ class FighterEnv_2D(FighterEnv):
         self.FT.dtheta = self.a_y/self.fighter.velocity
         self.FT.dpsi = -self.a_z/(self.fighter.velocity * cos(self.fighter.theta))
 
-        self.FT.simulate(self.dt)
+        
         
         self.FD.proportional_navigation()
 
+        self.FT.simulate(self.dt)  
         self.FD.simulate(self.dt)
         
 
@@ -668,13 +685,13 @@ class FighterEnv_nopolicy_2D(FighterEnv_2D):
 
                      
             
-            
-            self.FT.simulate(self.dt)
 
+            
             self.FT.proportional_navigation()
+            self.FD.proportional_navigation() 
 
             self.FD.simulate(self.dt)
-            self.FD.proportional_navigation() 
+            self.FT.simulate(self.dt)
              
             
             

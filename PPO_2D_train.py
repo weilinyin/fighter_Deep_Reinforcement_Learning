@@ -114,7 +114,7 @@ class SmartStopCallback(BaseCallback):
 myenv = FighterEnv_2D(dt = 0.01 ,Dt = 0.01)
 myenv = Monitor(myenv)
 
-callback = SmartStopCallback(target_reward=60 , avg_window=30 , stop_threshold=200)
+callback = SmartStopCallback(target_reward=200 , avg_window=30 , stop_threshold=200)
 
 
 model = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.002,

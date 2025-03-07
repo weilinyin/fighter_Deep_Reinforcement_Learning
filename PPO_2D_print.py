@@ -13,7 +13,7 @@ model = PPO.load("model_2D", env=myenv,device='cpu')
 
 obs , _ = myenv.reset()
 while not (myenv.success or myenv.fail):
-    action, _states = model.predict(obs)
+    action, _states = model.predict(obs, deterministic=True)
     obs, rewards, dones, _ , _ = myenv.step(action)
 
 
@@ -22,7 +22,8 @@ while not (myenv.success or myenv.fail):
 
 print(obs)
 print(rewards)
-
+r = myenv.plotdata["defender"]["r"]
+print(min(r))
 
 plt.figure()
 plt.plot(myenv.t_array , myenv.plotdata["defender"]["r"],label = "R_FD")
@@ -62,7 +63,7 @@ plt.plot(myenv.t_array , myenv.plotdata["defender"]["a_z"],label = "防御弹")
 plt.plot(myenv.t_array , myenv.plotdata["fighter"]["a_z"], label = "战斗机")
 plt.title('侧向加速度图')
 plt.xlabel('t/s')
-plt.ylabel('a_y/(m s^-2)')
+plt.ylabel('a_z/(m s^-2)')
 plt.legend()
 plt.savefig('fig\PPO二维仿真\侧向加速度图.png')
 
