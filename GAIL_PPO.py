@@ -236,6 +236,7 @@ class GAIL_PPO(PPO):
         )
         self.expert_generator = expert_generator
         self.N_gail = N_gail
+        self.N_count = 0
         
     def _calc_gail_reward(self, obs, actions):
         """计算对抗奖励"""
@@ -390,6 +391,7 @@ class GAIL_PPO(PPO):
                 actions = rollout_data.actions
 
 
+                observations = rollout_data.observations
                 expert_actions = rollout_data.expert_actions
 
                 D_output_actor = th.zeros((self.batch_size, 1))
@@ -397,19 +399,22 @@ class GAIL_PPO(PPO):
 
                 for steps in range(self.batch_size):
                     # Calculate the loss for the expert actions
-                    D_output_actor[steps] = self.discriminator(th.as_tensor(rollout_data.observations[steps]), 
+                    D_output_actor[steps] = self.discriminator(th.as_tensor(observations[steps]), 
                                                                th.as_tensor(actions[steps]))
-                    D_output_expert[steps] = self.discriminator(th.as_tensor(rollout_data.observations[steps]), 
+                    D_output_expert[steps] = self.discriminator(th.as_tensor(observations[steps]), 
                                                                 th.as_tensor(expert_actions[steps]))
                     
-                loss_D = th.sum(th.log(D_output_expert) + th.log(1 - D_output_actor))/self.batch_size
+                loss_D = th.sum(th.log(D_output_expert) + th.log(1 - D_output_actor) , 1)/self.batch_size
 
 
                 self.disc_optimizer.zero_grad()
                 loss_D.backward()
+                th.nn.utils.clip_grad_norm_(self.discriminator.parameters(), self.max_grad_norm)
                 self.disc_optimizer.step()
 
 
+                loss_gail = th.sum(th.log(self.discriminator(th.as_tensor(observations), 
+                                                            th.as_tensor(actions)) * th.log(1-D_output_actor.detach())) , 1)/self.batch_size
 
                 
 
@@ -464,6 +469,8 @@ class GAIL_PPO(PPO):
 
                 loss = policy_loss + self.ent_coef * entropy_loss + self.vf_coef * value_loss
 
+                
+
                 # Calculate approximate form of reverse KL Divergence for early stopping
                 # see issue #417: https://github.com/DLR-RM/stable-baselines3/issues/417
                 # and discussion in PR #419: https://github.com/DLR-RM/stable-baselines3/pull/419
@@ -478,6 +485,12 @@ class GAIL_PPO(PPO):
                     if self.verbose >= 1:
                         print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
                     break
+
+                if self.N_count <= self.N_gail:
+                   # GAIL loss calculation
+                   omega = 1/(1+np.exp(0.05*(self.N_count-self.N_gail/2)))
+                   loss = (1-omega)*loss +omega * loss_gail
+
 
                 # Optimization step
                 self.policy.optimizer.zero_grad()
@@ -507,3 +520,5 @@ class GAIL_PPO(PPO):
         self.logger.record("train/clip_range", clip_range)
         if self.clip_range_vf is not None:
             self.logger.record("train/clip_range_vf", clip_range_vf)
+
+        self.N_count += 1
