@@ -1,5 +1,6 @@
 from stable_baselines3.ppo import PPO
 import torch.nn as nn
+from torch.nn import functional as F
 import torch as th
 from math import cos , exp
 from MyEnvs import relative
@@ -18,7 +19,7 @@ from stable_baselines3.common.type_aliases import (
 from stable_baselines3.common.vec_env import VecNormalize
 
 
-from stable_baselines3.common.utils import obs_as_tensor
+from stable_baselines3.common.utils import obs_as_tensor , explained_variance
 from gymnasium import spaces
 
 class CustomRolloutBufferSamples(NamedTuple):
@@ -189,7 +190,8 @@ class expert_generator:
     def sample(self):
         a = self.generate(self.env.t)
 
-        return a
+        return np.array([a])
+
         
 
         
@@ -221,7 +223,7 @@ class GAILDiscriminator(nn.Module):
 
 class GAIL_PPO(PPO):
     rollout_buffer: CustomRolloutBuffer
-    def __init__(self, expert_generator:expert_generator, **kwargs):
+    def __init__(self, expert_generator:expert_generator , N_gail, **kwargs):
         super().__init__(rollout_buffer_class=CustomRolloutBuffer, **kwargs)
         # 初始化判别器
         self.discriminator = GAILDiscriminator(
@@ -233,6 +235,7 @@ class GAIL_PPO(PPO):
             lr=1e-3
         )
         self.expert_generator = expert_generator
+        self.N_gail = N_gail
         
     def _calc_gail_reward(self, obs, actions):
         """计算对抗奖励"""
@@ -282,7 +285,12 @@ class GAIL_PPO(PPO):
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
                 actions, values, log_probs = self.policy(obs_tensor)
             actions = actions.cpu().numpy()
+
+
             expert_actions = self.expert_generator.sample()
+
+
+
             # Rescale and perform action
             clipped_actions = actions
 
@@ -349,6 +357,11 @@ class GAIL_PPO(PPO):
 
         return True
     
+
+
+
+
+    
     def train(self) -> None:
         """
         魔改了一下，加入了专家动作expert_actions
@@ -375,7 +388,32 @@ class GAIL_PPO(PPO):
             # Do a complete pass on the rollout buffer
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 actions = rollout_data.actions
+
+
                 expert_actions = rollout_data.expert_actions
+
+                D_output_actor = th.zeros((self.batch_size, 1))
+                D_output_expert = th.zeros((self.batch_size, 1))
+
+                for steps in range(self.batch_size):
+                    # Calculate the loss for the expert actions
+                    D_output_actor[steps] = self.discriminator(th.as_tensor(rollout_data.observations[steps]), 
+                                                               th.as_tensor(actions[steps]))
+                    D_output_expert[steps] = self.discriminator(th.as_tensor(rollout_data.observations[steps]), 
+                                                                th.as_tensor(expert_actions[steps]))
+                    
+                loss_D = th.sum(th.log(D_output_expert) + th.log(1 - D_output_actor))/self.batch_size
+
+
+                self.disc_optimizer.zero_grad()
+                loss_D.backward()
+                self.disc_optimizer.step()
+
+
+
+                
+
+
 
                 if isinstance(self.action_space, spaces.Discrete):
                     # Convert discrete action from float to long
