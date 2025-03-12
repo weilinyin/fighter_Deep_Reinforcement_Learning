@@ -302,6 +302,9 @@ class FighterEnv(gym.Env):
         # 初始化失败标志
         self.fail = False
 
+        # 初始化总回合数
+        self.episode = 0
+
 
 
 
@@ -380,6 +383,7 @@ class FighterEnv(gym.Env):
 
 
         self.t = self.t_0
+        self.episode += 1
 
         self.success =False
         self.fail=False
@@ -599,6 +603,9 @@ class FighterEnv_2D(FighterEnv):
 
         # 初始化失败标志
         self.fail = False
+
+        # 初始化总回合数
+        self.episode = 0
 
     def step(self,action):
 

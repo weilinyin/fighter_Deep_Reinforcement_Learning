@@ -75,6 +75,8 @@ class SmartStopCallback(BaseCallback):
         self.episode_rewards = []        # 原始奖励记录
         self.mean_rewards = []           # 滑动平均奖励
         self.consecutive_count = 0       # 连续达标计数器
+        self.episode_count = 0           # 总episode数
+
 
     def _on_step(self) -> bool:
         # 收集所有环境的episode奖励

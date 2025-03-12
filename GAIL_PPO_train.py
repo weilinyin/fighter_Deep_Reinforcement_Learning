@@ -13,7 +13,7 @@ myenv = FighterEnv_2D(dt = 0.01 ,Dt = 0.01)
 expert = expert_generator(env=myenv)
 myenv = Monitor(myenv)
 
-callback = SmartStopCallback(target_reward=145 , avg_window=30 , stop_threshold=200)
+callback = SmartStopCallback(target_reward=200 , avg_window=30 , stop_threshold=200)
 
 
 
