@@ -10,7 +10,7 @@ from custom_things import SmartStopCallback , CustomPolicy
 
 
 myenv = FighterEnv_2D(dt = 0.01 ,Dt = 0.01)
-expert = expert_generator(env=myenv)
+expert = expert_generator(env=myenv , c_f=-0.002)
 myenv = Monitor(myenv)
 
 callback = SmartStopCallback(target_reward=200 , avg_window=30 , stop_threshold=200)
@@ -19,7 +19,7 @@ callback = SmartStopCallback(target_reward=200 , avg_window=30 , stop_threshold=
 
 
 model = GAIL_PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.002,
-              gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2   ,expert_generator=expert , N_gail=300)
+              gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2   ,expert_generator=expert , N_gail=200)
 
 model.learn(total_timesteps=1e7, log_interval=1 ,callback = callback , progress_bar= True )
 
@@ -48,5 +48,5 @@ plt.ylabel('Reward')
 plt.title(f'Training Progress (Stopped at Episode {len(callback.episode_rewards)})')
 plt.legend()
 plt.grid(True)
-plt.savefig('fig\GAIL-PPO二维仿真\Training_Progress.png')
+plt.savefig('fig\GAIL-PPO仿真\Training_Progress.png')
 plt.show()

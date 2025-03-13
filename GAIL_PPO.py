@@ -29,8 +29,6 @@ class CustomRolloutBufferSamples(NamedTuple):
     old_values: th.Tensor
     old_log_prob: th.Tensor
     expert_log_probs: th.Tensor
-    D_output_actor:th.Tensor
-    D_output_expert:th.Tensor
     advantages: th.Tensor
     returns: th.Tensor
 
@@ -39,8 +37,6 @@ class CustomRolloutBuffer(RolloutBuffer):
     #魔改了buffer，增加了专家策略
     expert_actions:np.ndarray
     expert_log_probs :np.ndarray
-    D_output_actor:np.ndarray
-    D_output_expert:np.ndarray
 
 
     def get(self, batch_size: Optional[int] = None) -> Generator[CustomRolloutBufferSamples, None, None]:
@@ -55,8 +51,6 @@ class CustomRolloutBuffer(RolloutBuffer):
                 "values",
                 "log_probs",
                 "expert_log_probs",
-                "D_output_actor",
-                "D_output_expert",
                 "advantages",
                 "returns",
             ]
@@ -86,8 +80,6 @@ class CustomRolloutBuffer(RolloutBuffer):
         self.advantages = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.expert_actions = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.expert_log_probs = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
-        self.D_output_actor = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
-        self.D_output_expert = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.generator_ready = False
         super().reset()
 
@@ -101,8 +93,6 @@ class CustomRolloutBuffer(RolloutBuffer):
         value: th.Tensor,
         log_prob: th.Tensor,
         expert_log_prob: th.Tensor,
-        D_output_actor: np.ndarray,
-        D_output_expert: np.ndarray,
 
     ) -> None:
         """
@@ -137,8 +127,6 @@ class CustomRolloutBuffer(RolloutBuffer):
         self.expert_actions[self.pos] = np.array(expert_action)  # Add expert action to the buffer
         self.expert_log_probs[self.pos] = expert_log_prob.clone().cpu().numpy()  # Add expert log probability to the buffer
 
-        self.D_output_actor[self.pos] = np.array(D_output_actor)
-        self.D_output_expert[self.pos] = np.array(D_output_expert)
 
 
         self.pos += 1
@@ -155,6 +143,7 @@ class CustomRolloutBuffer(RolloutBuffer):
             self.expert_actions[batch_inds],  # Include expert actions in the samples
             self.values[batch_inds].flatten(),
             self.log_probs[batch_inds].flatten(),
+            self.expert_log_probs[batch_inds].flatten(),
             self.advantages[batch_inds].flatten(),
             self.returns[batch_inds].flatten(),
         )
@@ -216,7 +205,8 @@ class expert_generator:
     def sample(self):
         a = self.generate(self.env.t)
 
-        return np.array([a])
+        return np.array([[a]] , dtype=np.float32)
+
 
         
 
@@ -240,7 +230,7 @@ class GAILDiscriminator(nn.Module):
         )
     
     def forward(self, states, actions):
-        return self.net(th.cat([states, actions], dim=0))
+        return self.net(th.cat((states , actions) , dim=-1))
     
 
 
@@ -302,16 +292,16 @@ class GAIL_PPO(PPO):
                 self.policy.reset_noise(env.num_envs)
 
             expert_actions = self.expert_generator.sample()
+            expert_actions_tensor = th.from_numpy(expert_actions)
 
             with th.no_grad():
                 # Convert to pytorch tensor or to TensorDict
                 obs_tensor = obs_as_tensor(self._last_obs, self.device)
                 actions, values, log_probs = self.policy(obs_tensor)
-                _ , expert_log_probs , _ = self.policy.evaluate_actions(obs_tensor, expert_actions)
-                D_output_actor = self.discriminator(obs_tensor , actions)
-                D_output_expert = self.discriminator(obs_tensor , th.as_tensor(expert_actions))
+                _ , expert_log_probs , _ = self.policy.evaluate_actions(obs_tensor, expert_actions_tensor)
 
             actions = actions.cpu().numpy()
+
 
 
             
@@ -372,8 +362,6 @@ class GAIL_PPO(PPO):
                 values,
                 log_probs,
                 expert_log_probs,
-                D_output_actor ,
-                D_output_expert
             )
             self._last_obs = new_obs  # type: ignore[assignment]
             self._last_episode_starts = dones
@@ -415,38 +403,34 @@ class GAIL_PPO(PPO):
         clip_fractions = []
 
         continue_training = True
+        episode = self.expert_generator.env.episode
         # train for n_epochs epochs
         for epoch in range(self.n_epochs):
             approx_kl_divs = []
             # Do a complete pass on the rollout buffer
+
             for rollout_data in self.rollout_buffer.get(self.batch_size):
                 actions = rollout_data.actions
-
-
-                observations = rollout_data.observations
-                expert_actions = rollout_data.expert_actions
-
                 
+                if episode <= self.N_gail:
+                    observations = rollout_data.observations
+                    expert_actions = rollout_data.expert_actions
 
-                D_output_actor = th.zeros(actions.shape[0] , actions.shape[1])
-                D_output_expert = th.zeros(actions.shape[0] , actions.shape[1])
+                    D_output_actor = th.zeros(actions.shape[0], actions.shape[1])
+                    D_output_expert = th.zeros(actions.shape[0], actions.shape[1])
 
-                for steps in range(self.batch_size):
-                    # Calculate the loss for the expert actions
-                    D_output_actor[steps] = self.discriminator(th.as_tensor(observations[steps]), 
-                                                                th.as_tensor(actions[steps]))
-                    D_output_expert[steps] = self.discriminator(th.as_tensor(observations[steps]), 
-                                                                th.as_tensor(expert_actions[steps]))
-
+                    for steps in range(self.batch_size):
+                        D_output_actor[steps] = self.discriminator(observations[steps] , actions[steps])
+                        D_output_expert[steps] = self.discriminator(observations[steps] , expert_actions[steps])
 
                     
-                loss_D = th.sum(th.log(D_output_expert) + th.log(1 - D_output_actor) , dim=0)/self.batch_size
+                    loss_D = -th.sum(th.log(D_output_expert) + th.log(1 - D_output_actor) , dim=0)/self.batch_size
 
 
-                self.disc_optimizer.zero_grad()
-                loss_D.backward()
-                th.nn.utils.clip_grad_norm_(self.discriminator.parameters(), self.max_grad_norm)
-                self.disc_optimizer.step()
+                    self.disc_optimizer.zero_grad()
+                    loss_D.backward()
+                    th.nn.utils.clip_grad_norm_(self.discriminator.parameters(), self.max_grad_norm)
+                    self.disc_optimizer.step()
 
 
                 
@@ -521,17 +505,19 @@ class GAIL_PPO(PPO):
                         print(f"Early stopping at step {epoch} due to reaching max kl: {approx_kl_div:.2f}")
                     break
 
-                _ , expert_log_probs , _ = self.policy.evaluate_actions(rollout_data.observations , expert_actions)
+                
 
 
 
-                loss_gail = th.sum(expert_log_probs * th.log(1-D_output_actor.detach()) , dim=0)/self.batch_size
+                
 
 
-                episode = int(self.num_timesteps/1500)
+                
 
                 if episode <= self.N_gail:
                    # GAIL loss calculation
+                   _ , expert_log_probs , _ = self.policy.evaluate_actions(rollout_data.observations , expert_actions)
+                   loss_gail = th.sum(expert_log_probs * th.log(1-D_output_actor.detach().flatten()) , dim=0)/self.batch_size
                    omega = 1/(1+np.exp(0.05*(episode-self.N_gail/2)))
                    loss = (1-omega)*loss +omega * loss_gail
 

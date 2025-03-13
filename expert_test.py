@@ -13,11 +13,11 @@ myenv = FighterEnv_2D(True,Dt = 0.01 ,dt = 0.01)
 
 
 target_c_f = 0
-c_f = -0.002
+c_f = -0.0015
 
 obs , _ = myenv.reset()
     
-expert = expert_generator(myenv.FD , myenv.FT , myenv.t_0 , c_f )
+expert = expert_generator(myenv , c_f)
     
 while not (myenv.success or myenv.fail):
     a_E = expert.generate(myenv.t)

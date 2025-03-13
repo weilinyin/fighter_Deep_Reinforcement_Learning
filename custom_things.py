@@ -49,7 +49,7 @@ class CustomPolicy(ActorCriticPolicy):
         kwargs["ortho_init"] = False
         super().__init__(observation_space, action_space, lr_schedule, **kwargs)
 
-        self.log_std_init = log(0.5)  # 固定log_std的初始值
+        self.log_std_init = log(0.5/(9.81*2))  # 固定log_std的初始值
         self.log_std = nn.Parameter(
             th.ones(1) * self.log_std_init, 
             requires_grad=False
