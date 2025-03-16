@@ -3,7 +3,6 @@ from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Tuple
 from custom_things import SmartStopCallback , CustomPolicy
 
 
@@ -17,13 +16,13 @@ callback = SmartStopCallback(target_reward=200 , avg_window=30 , stop_threshold=
 
 
 model = PPO(policy = CustomPolicy, env = myenv, verbose=1, device='cpu',learning_rate = 0.002,
-              gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2  )
+              gae_lambda= 0.97 , gamma = 0.97 , n_steps = 2048 , batch_size = 512 , n_epochs = 4 ,clip_range = 0.2   , tensorboard_log="./logs/PPO")
 
-model.learn(total_timesteps=1e7, log_interval=1 ,callback = callback , progress_bar= True )
+model.learn(total_timesteps=1e7, log_interval=1,callback = callback , progress_bar= True )
 
 model.save("model_2D")
 del model
-
+np.save("fig/PPO二维仿真/Training_Progress.npy" , np.array(callback.episode_rewards))
 # 绘制训练曲线
 plt.figure(figsize=(12, 6))
 

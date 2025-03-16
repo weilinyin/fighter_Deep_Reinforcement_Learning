@@ -13,6 +13,7 @@ obs , _ = myenv.reset()
 while not (myenv.success or myenv.fail):
     action, _states = model.predict(obs, deterministic=True)
     obs, rewards, dones, _ , _ = myenv.step(action)
+print(rewards)
 
 plot_and_save_fig(myenv, "2D", "fig/GAIL-PPO仿真")
 

@@ -215,6 +215,8 @@ class relative:
 
 # 1. 环境模块
 class FighterEnv(gym.Env):
+    k_plus = 100
+    k_minus = -100
 
     def __init__(self,Isprint = False , dt = 0.1 ,Dt = 1):
         super().__init__()
@@ -491,14 +493,14 @@ class FighterEnv(gym.Env):
         
         if self.FT.r <= R_FT and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft <= ETA_FT:
             self.success = True
-            return K_PLUS
+            return self.k_plus
         
         elif self.FD.r <= R_FD and self.FD.dr > 0 and self.FD.r > R_DAM and self.eta_ft > ETA_FT:
             return 0
         
-        elif self.FD.r < R_DAM:
+        elif self.FD.r < R_DAM or self.t > 2e3:
             self.fail = True
-            return K_MINUS
+            return self.k_minus
         
         else:
             if self.eta_ft <= ETA_FT:
@@ -518,6 +520,8 @@ class FighterEnv(gym.Env):
 
 
 class FighterEnv_2D(FighterEnv):
+    k_plus = 50
+    k_minus = -50
     def __init__(self, Isprint = False ,dt = 0.1 ,Dt = 1):
         super(FighterEnv, self).__init__()
 
